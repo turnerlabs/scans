@@ -70,7 +70,7 @@ async function getConfigurations(allConfigurations, partition) {
             if(service === 'aws') {
                 //If account_id in aws config, then replace it with roleArn.
                 if (allConfigurations.aws.account_id) {
-                    allConfigurations.aws.roleArn = ["arn",partition,"iam","",allConfigurations.aws.account_id,("role/" + defaultRoleName)].join(':');
+                    allConfigurations.aws.roleArn = ["arn", partition, "iam", "", allConfigurations.aws.account_id, "role/" + defaultRoleName].join(':');
                     delete allConfigurations.aws.account_id;
                 }
             } else if(allConfigurations[service].credentialId) {
@@ -94,10 +94,8 @@ async function getConfigurations(allConfigurations, partition) {
  * It is expected that AWSConfig is only obtainable via assuming a role.
  *
  * @param {String} roleArn The ARN for the role to get credentials for.
- *
  * @param {String} [externalID] The externalID used for role assumption.
- *
- * @returns Configuration with credentials.
+ * @returns AWS Configuration for cloudsploit engine.
  *
  * @throws If roleArn is not defined, rejects with an error.
  */

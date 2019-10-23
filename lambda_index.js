@@ -69,7 +69,6 @@ exports.handler = async function(event, context) {
         resultCollector.ResultsData = outputHandler.getOutput();
         console.assert(resultCollector.collectionData, "No Collection Data found.");
         console.assert(resultCollector.ResultsData, "No Results Data found.");
-        console.error(JSON.stringify(resultCollector));
         var outputPromises = writeToS3(process.env.RESULT_BUCKET, resultCollector, process.env.RESULT_PREFIX);
         await Promise.all(outputPromises);
         return 'Ok';
