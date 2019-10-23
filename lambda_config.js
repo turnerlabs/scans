@@ -1,4 +1,5 @@
 var AWS = require('aws-sdk');
+var secretManager = new AWS.SecretsManager();
 
 /***
  * Finds a secret from Secrets Manager given a key and a region.
@@ -6,12 +7,9 @@ var AWS = require('aws-sdk');
  *
  * @param {String} secretManagerKey A key for where to find the secrets in secret manager.
  *
- * @param {String} region The region where the secret is stored.
- *
  * @returns A JSON object with the secret(s) found in secret manager.
  */
-async function getSecret(secretManagerKey, region) {
-    var secretManager = new AWS.SecretsManager({region: region});
+async function getSecret(secretManagerKey) {
     var data = await secretManager.getSecretValue({SecretId: secretManagerKey}).promise();
     return data.SecretString ? JSON.parse(data.SecretString) : {};
 }
@@ -20,7 +18,6 @@ async function getSecret(secretManagerKey, region) {
  * Parses AWS events, currently expects either an SNS event or Cloudwatch event.
  *
  * @param event AWS Event to be parsed.
- *
  * @returns Json object containing the configuration detail from the event.
  */
 function parseEvent(event) {
@@ -28,10 +25,10 @@ function parseEvent(event) {
 
     //Expected events are SNS and Cloudwatch, could add other events here if needed.
     if(event.Records && event.Records[0].Sns) {
-        console.log("---SNS Event Trigger---");
+        console.log("SNS Event Trigger");
         allConfigurations = JSON.parse(event.Records[0].Sns.Message);
     } else if(event.detail) {
-        console.log("---CloudWatch Event Trigger---");
+        console.log("CloudWatch Event Trigger");
         allConfigurations = event.detail;
     }
     console.assert(allConfigurations, "Configurations not found from incoming Event.");
@@ -45,17 +42,13 @@ function parseEvent(event) {
  * Any other data will be passed through untouched.
  *
  * @param {String} event The initializing event for the lambda.
- *
  * @param {String} partition The AWS partition (at current, aws, aws-cn, or aws-us-govt)
- *
- * @param {String} region The region which the Lambda is running in.
- *
  * @returns The parsed configurations with secrets in place.
  *
  * @throws Any misconfiguration will result in an error being thrown.
  */
-async function getConfigurations(allConfigurations, partition, region) {
-    console.log("--Begin Parsing of Incoming Event--");
+async function getConfigurations(allConfigurations, partition) {
+    console.log("Begin Parsing of Incoming Event");
     var secretPrefix = process.env.SECRET_PREFIX;
     var defaultRoleName = process.env.DEFAULT_ROLE_NAME;
 
@@ -71,7 +64,7 @@ async function getConfigurations(allConfigurations, partition, region) {
     var serviceCount = 0;
     for (service in allConfigurations) {
         if(service in expectedServices) {
-            console.log("---Found Service ",service.toUpperCase() ,"---");
+            console.log("Found Service ",service.toUpperCase());
             serviceCount++;
             if(serviceCount > 1) throw (new Error("Multiple Services in Incoming Event."));
             if(service === 'aws') {
@@ -85,7 +78,7 @@ async function getConfigurations(allConfigurations, partition, region) {
                     if (config in expectedServices[service]) throw (new Error("Configuration passed in through event which must be in Secrets Manager."));
                 }
                 var secretsManagerKey = [secretPrefix, service, allConfigurations[service].credentialId].join('/');
-                secret = await getSecret(secretsManagerKey, region);
+                secret = await getSecret(secretsManagerKey); // eslint-disable-line  no-await-in-loop
                 delete allConfigurations[service].credentialId;
                 Object.assign(allConfigurations[service], secret);
             }
@@ -102,34 +95,25 @@ async function getConfigurations(allConfigurations, partition, region) {
  *
  * @param {String} roleArn The ARN for the role to get credentials for.
  *
- * @param {String} region The region where the credentials are located.
- *
  * @param {String} [externalID] The externalID used for role assumption.
  *
- * @returns Promise containing the requested AWS Configuration.
+ * @returns Configuration with credentials.
  *
  * @throws If roleArn is not defined, rejects with an error.
  */
-function getCredentials(roleArn, region, externalId) {
-    console.log("---Getting Credentials for AWS Configuration---");
+
+function getCredentials(roleArn, externalId) {
+    console.log("Getting Credentials for AWS Configuration");
     if(!roleArn) {
         throw new Error("roleArn is not defined from incoming event.");
     }
     var STSParams = {
-        RoleArn: roleArn
+        RoleArn: roleArn,
+        ExternalId: externalId
     };
-    if(externalId) {
-        STSParams.ExternalId = externalId
+    return {
+        credentials: new AWS.ChainableTemporaryCredentials({ params: STSParams })
     };
-    var creds = new AWS.ChainableTemporaryCredentials({params:STSParams});
-
-    var config = {
-        'accessKeyId' : creds.service.config.credentials.accessKeyId,
-        'secretAccessKey' : creds.service.config.credentials.secretAccessKey,
-        'sessionToken' : creds.service.config.credentials.sessionToken,
-        'region': region
-    };
-    return config;
 }
 
 module.exports = {getConfigurations, parseEvent, getCredentials}
