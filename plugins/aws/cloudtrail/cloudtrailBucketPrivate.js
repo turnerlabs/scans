@@ -9,11 +9,26 @@ module.exports = {
     recommended_action: 'Set the S3 bucket access policy for all CloudTrail buckets to only allow known users to access its files.',
     link: 'http://docs.aws.amazon.com/AmazonS3/latest/dev/example-bucket-policies.html',
     apis: ['CloudTrail:describeTrails', 'S3:getBucketAcl'],
+    settings: {
+        cloudtrail_bucket_regex: {
+            name: 'CloudTrail Bucket Regex',
+            description: 'Ignore if the cloudtrail bucket matches this regex',
+            regex: '^.*$',
+            default: '^$',
+        },
+    },
 
     run: function(cache, settings, callback) {
         var results = [];
         var source = {};
         var regions = helpers.regions(settings);
+
+        var bucketRegex = RegExp(this.settings.cloudtrail_bucket_regex.default);
+        try {
+            var bucketRegex = RegExp(settings.cloudtrail_bucket_regex || this.settings.cloudtrail_bucket_regex.default);
+        } catch (err) {
+            helpers.addResult(results, 3, err.message, 'global', this.settings.cloudtrail_bucket_regex.name);
+        }
 
         async.each(regions.cloudtrail, function(region, rcb){
 
@@ -34,8 +49,8 @@ module.exports = {
             }
 
             async.each(describeTrails.data, function(trail, cb){
-                if (!trail.S3BucketName) return cb();
-
+                if (!trail.S3BucketName || bucketRegex.test(trail.S3BucketName))
+                    return cb();
                 var s3Region = helpers.defaultRegion(settings);
 
                 var getBucketAcl = helpers.addSource(cache, source,
