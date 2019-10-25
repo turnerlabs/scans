@@ -25,11 +25,12 @@ async function writeToS3(bucket, resultsToWrite, prefix) {
         var latestKey = [bucketPrefix, "latest.json"].join('/');
         var results = JSON.stringify(resultsToWrite, null, 2);
 
-        var promises = [];
-        promises.push(s3.putObject({Bucket: bucket, Key: key, Body: results}).promise());
-        promises.push(s3.putObject({Bucket: bucket, Key: latestKey, Body: results}).promise());
+        var promises = [
+            s3.putObject({Bucket: bucket, Key: latestKey, Body: results}).promise(),
+            s3.putObject({Bucket: bucket, Key: key, Body: results}).promise()
+        ];
 
-        return promises;
+        return Promise.all(promises);
     }
     return []
 }
@@ -70,11 +71,10 @@ exports.handler = async function(event, context) {
         resultCollector.ResultsData = outputHandler.getOutput();
         console.assert(resultCollector.collectionData, "No Collection Data found.");
         console.assert(resultCollector.ResultsData, "No Results Data found.");
-        var outputPromises = writeToS3(process.env.RESULT_BUCKET, resultCollector, process.env.RESULT_PREFIX);
-        await Promise.all(outputPromises);
+        await writeToS3(process.env.RESULT_BUCKET, resultCollector, process.env.RESULT_PREFIX);
         return 'Ok';
     } catch(err) {
-        //This is mainly here in the case of implementing more robust error handling.
+        // Just log the error and throw so we have a lambda error metr
         console.log(err);
         throw(err);
     }
