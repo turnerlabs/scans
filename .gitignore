@@ -7,3 +7,5 @@ output.json
 vscode/*
 .vscode/
 .idea
+.local/*
+template.packaged.yaml
