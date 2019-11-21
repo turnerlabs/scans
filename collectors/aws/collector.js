@@ -322,6 +322,14 @@ var calls = {
                 Limit: 1000
             }
         },
+        listAliases: {
+            property: 'Aliases',
+            paginate: 'NextMarker',
+            paginateReqProp: 'Marker',
+            params: {
+                Limit: 1000
+            }
+        }
     },
     Lambda: {
         listFunctions: {
