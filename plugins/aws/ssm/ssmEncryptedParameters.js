@@ -40,9 +40,13 @@ module.exports = {
             cloudhsm: 5
         };
 
-        var desiredEncryptionLevelString = settings.s3_encryption_level || this.settings.s3_encryption_level
+        var desiredEncryptionLevelString = settings.ssm_encryption_level || this.settings.ssm_encryption_level.default
         var desiredEncryptionLevel = encryptionLevelMap[desiredEncryptionLevelString]
         var currentEncryptionLevelString, currentEncryptionLevel
+        if(!desiredEncryptionLevel) {
+            helpers.addResult(results, 3, 'Settings misconfigured for SSM Encryption Level.');
+            return callback(null, results, source);
+        }
 
         var regions = helpers.regions(settings);
 
@@ -108,11 +112,11 @@ module.exports = {
 
                     if(!describeKey) {
                         helpers.addResult(results, 3, 'Unable locate KMS key for describeKey: ' + keyId, region);
-                        return bcb();
+                        return pcb();
                     }
                     if (describeKey.err || !describeKey.data) {
                         helpers.addResult(results, 3, 'Unable to query for KMS Key: ' + helpers.addError(describeKey), region);
-                        return bcb();
+                        return pcb();
                     }
                     currentEncryptionLevelString =  describeKey.data.KeyMetadata.Origin === 'AWS_CLOUDHSM' ? 'cloudhsm' :
                                                     describeKey.data.KeyMetadata.Origin === 'EXTERNAL' ? 'externalcmk' :
@@ -120,9 +124,9 @@ module.exports = {
 
                     currentEncryptionLevel = encryptionLevelMap[currentEncryptionLevelString]
                     if (currentEncryptionLevel < desiredEncryptionLevel) {
-                        helpers.addResult(results, 1, `SSM Param is encrypted to ${currentEncryptionLevelString}, which is lower than the desired ${desiredEncryptionLevelString} level.`, region, bucketResource);
+                        helpers.addResult(results, 1, `SSM Param is encrypted to ${currentEncryptionLevelString}, which is lower than the desired ${desiredEncryptionLevelString} level.`, region, arn);
                     } else {
-                        helpers.addResult(results, 0, `SSM Param is encrypted to a minimum of ${desiredEncryptionLevelString}`, region, bucketResource);
+                        helpers.addResult(results, 0, `SSM Param is encrypted to a minimum of ${desiredEncryptionLevelString}`, region, arn);
                     }
                 }
                 return pcb()
