@@ -8,7 +8,7 @@ module.exports = {
     more_info: 'SSM Parameters should be encrypted. This allows their values to be used by approved systems, while restricting access to other users of the account.',
     link: 'https://docs.aws.amazon.com/systems-manager/latest/userguide/sysman-paramstore-about.html#sysman-paramstore-securestring',
     recommended_action: 'Recreate unencrypted SSM Parameters with Type set to SecureString.',
-    apis: ['SSM:describeParameters', 'STS:getCallerIdentity', 'kms:listAliases', 'kms:describeKeys'],
+    apis: ['SSM:describeParameters', 'STS:getCallerIdentity', 'KMS:listAliases', 'KMS:describeKeys'],
     compliance: {
         hipaa: 'HIPAA requires that all data is encrypted, including data at rest',
         pci: 'PCI requires proper encryption of cardholder data at rest. SSM ' +
@@ -72,7 +72,8 @@ module.exports = {
 
 
             async.each(describeParameters.data, function(param, pcb) {
-                var arn = 'arn:aws:ssm:' + region + ':' + accountId + ':parameter/' + param.Name;
+                var paramName = param.Name.charAt(0) === '/' ? param.Name.substr(1) : param.Name;
+                var arn = 'arn:aws:ssm:' + region + ':' + accountId + ':parameter/' + paramName;
 
                 if (param.Type != "SecureString") {
                     helpers.addResult(results, 2, 'Non-SecureString Parameters present', region, arn)
