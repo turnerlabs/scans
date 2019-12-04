@@ -146,6 +146,7 @@ module.exports = {
         'lambdaOldRuntimes'             : require(__dirname + '/plugins/aws/lambda/lambdaOldRuntimes.js'),
         'lambdaVpcConfig'               : require(__dirname + '/plugins/aws/lambda/lambdaVpcConfig.js'),
         'lambdaPublicAccess'            : require(__dirname + '/plugins/aws/lambda/lambdaPublicAccess.js'),
+        'lambdaLayerPublicAccess'       : require(__dirname + '/plugins/aws/lambda/lambdaLayerPublicAccess.js'),
 
         'monitoringMetrics'             : require(__dirname + '/plugins/aws/cloudwatchlogs/monitoringMetrics.js'),
 
