@@ -328,6 +328,11 @@ var calls = {
             property: 'Functions',
             paginate: 'NextMarker',
             paginateReqProp: 'Marker'
+        },
+        listLayers: {
+            property: 'Layers',
+            paginate: 'NextMarker',
+            paginateReqProp: 'Marker'
         }
     },
     RDS: {
@@ -668,6 +673,12 @@ var postcalls = [
                 filterKey: 'FunctionName',
                 filterValue: 'FunctionName'
             },
+            getLayerVersionPolicy: {
+                reliesOnService: 'lambda',
+                reliesOnCall: 'listLayers',
+                override: true
+
+            },
             listTags: {
                 reliesOnService: 'lambda',
                 reliesOnCall: 'listFunctions',
@@ -914,7 +925,6 @@ var collect = function (AWSConfig, settings, callback) {
                                         var filter = {};
                                         filter[callObj.filterKey] = dep[callObj.filterValue];
                                         filter[callObj.checkMultipleKey] = thisCheck;
-
                                         executor[callKey](filter, function (err, data) {
                                             if (debugTime) {
                                                 var innerDate = new Date();
@@ -941,6 +951,7 @@ var collect = function (AWSConfig, settings, callback) {
 
                                     var filter = {};
                                     filter[callObj.filterKey] = dep[callObj.filterValue];
+
                                     executor[callKey](filter, function (err, data) {
                                         if (debugTime) {
                                             var innerDate = new Date();
