@@ -1,5 +1,18 @@
 var async = require('async');
 var helpers = require('../../../helpers/aws');
+const encryptionLevelMap = {
+    sse: 1,
+    awskms: 2,
+    awscmk: 3,
+    externalcmk: 4,
+    cloudhsm: 5
+};
+
+function getEncryptionLevel(kmsKey) {
+    return kmsKey.Origin === 'AWS_CLOUDHSM' ? 'cloudhsm' :
+           kmsKey.Origin === 'EXTERNAL' ? 'externalcmk' :
+           kmsKey.KeyManager === 'CUSTOMER' ? 'awscmk' : 'awskms'
+}
 
 module.exports = {
     title: 'SSM Encrypted Parameters',
@@ -32,22 +45,15 @@ module.exports = {
     run: function(cache, settings, callback) {
         var results = [];
         var source = {};
-        const encryptionLevelMap = {
-            sse: 1,
-            awskms: 2,
-            awscmk: 3,
-            externalcmk: 4,
-            cloudhsm: 5
-        };
 
         var desiredEncryptionLevelString = settings.ssm_encryption_level || this.settings.ssm_encryption_level.default
-        var desiredEncryptionLevel = encryptionLevelMap[desiredEncryptionLevelString]
-        var currentEncryptionLevelString, currentEncryptionLevel
-        if(!desiredEncryptionLevel) {
+        if(!desiredEncryptionLevelString.match(this.settings.ssm_encryption_level.regex)) {
             helpers.addResult(results, 3, 'Settings misconfigured for SSM Encryption Level.');
             return callback(null, results, source);
         }
 
+        var desiredEncryptionLevel = encryptionLevelMap[desiredEncryptionLevelString]
+        var currentEncryptionLevelString, currentEncryptionLevel
         var regions = helpers.regions(settings);
 
         var acctRegion = helpers.defaultRegion(settings);
@@ -69,7 +75,6 @@ module.exports = {
                 helpers.addResult(results, 0, 'No Parameters present', region);
                 return rcb();
             }
-
 
             async.each(describeParameters.data, function(param, pcb) {
                 var paramName = param.Name.charAt(0) === '/' ? param.Name.substr(1) : param.Name;
@@ -119,11 +124,10 @@ module.exports = {
                         helpers.addResult(results, 3, 'Unable to query for KMS Key: ' + helpers.addError(describeKey), region);
                         return pcb();
                     }
-                    currentEncryptionLevelString =  describeKey.data.KeyMetadata.Origin === 'AWS_CLOUDHSM' ? 'cloudhsm' :
-                                                    describeKey.data.KeyMetadata.Origin === 'EXTERNAL' ? 'externalcmk' :
-                                                    describeKey.data.KeyMetadata.KeyManager === 'CUSTOMER' ? 'awscmk' : 'awskms'
 
+                    currentEncryptionLevelString = getEncryptionLevel(describeKey.data.KeyMetadata)
                     currentEncryptionLevel = encryptionLevelMap[currentEncryptionLevelString]
+
                     if (currentEncryptionLevel < desiredEncryptionLevel) {
                         helpers.addResult(results, 1, `SSM Param is encrypted to ${currentEncryptionLevelString}, which is lower than the desired ${desiredEncryptionLevelString} level.`, region, arn);
                     } else {
