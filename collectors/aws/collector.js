@@ -320,7 +320,7 @@ var calls = {
             paginateReqProp: 'Marker',
             params: {
                 Limit: 1000
-            }
+            },
         },
     },
     Lambda: {
@@ -329,6 +329,16 @@ var calls = {
             paginate: 'NextMarker',
             paginateReqProp: 'Marker'
         }
+    },
+    RAM: {
+        listResources: {
+            property: 'resources',
+            paginate: 'nextToken',
+            paginateReqProp: 'nextToken',
+            params: {
+                resourceOwner: 'SELF',
+            },
+        },
     },
     RDS: {
         describeDBInstances: {

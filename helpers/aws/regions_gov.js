@@ -30,6 +30,7 @@ module.exports = {
     kms: regions,
     vpc: regions,
     flowlogs: regions,
+    ram: regions,
     rds: regions,
     redshift: regions,
     apigateway: regions,
