@@ -15,14 +15,9 @@ const createCache = (users) => {
                 'us-east-2': {
                     "test-layer": {
                         data: {
-                            Version: '2012-10-17',
-                            Id: 'default',
                             Statement: [
                                 {
-                                Sid: '999',
-                                Effect: 'Allow',
                                 Principal: users,
-                                Action: 'lambda:GetLayerVersion',
                                 Resource: 'arn:aws:lambda:us-east-2:455679818906:layer:test-layer:1'
                                 }
                             ]
@@ -58,9 +53,9 @@ describe('lambdaLayerPublicAccess', function () {
                 done()
             }
 
-            const cache = createCache({AWS: ["1231231231244", "1231231231245"]});
+            const cache = createCache({AWS: "arn:aws:lambda:us-east-2:231231553156"});
 
-            lambdaLayerPublicAccess.run(cache, {allowed_ids: ["12312312312"]}, callback);
+            lambdaLayerPublicAccess.run(cache, {lambda_layer_allowed_account_ids: "231231553155,231231583155"}, callback);
         })
 
     })
@@ -73,7 +68,7 @@ describe('lambdaLayerPublicAccess', function () {
                 done()
             }
 
-            const cache = createCache({AWS: ["1231231231244", "1231231231245"]});
+            const cache = createCache({AWS: "arn:aws:lambda:us-east-2:2312312"});
 
             lambdaLayerPublicAccess.run(cache, {}, callback);
         })
