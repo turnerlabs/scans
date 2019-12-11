@@ -32,20 +32,19 @@ module.exports = {
         ssm_encryption_level: {
             name: 'SSM Minimum Encryption Level',
             description: 'In order (lowest to highest) \
-                sse=Server-Side Encryption; \
                 awskms=AWS-managed KMS; \
                 awscmk=Customer managed KMS; \
                 externalcmk=Customer managed externally sourced KMS; \
                 cloudhsm=Customer managed CloudHSM sourced KMS',
-            regex: '^(sse|awskms|awscmk|externalcmk|cloudhsm)$',
-            default: 'sse',
+            regex: '^(awskms|awscmk|externalcmk|cloudhsm)$',
+            default: 'awskms',
         }
     },
 
     run: function(cache, settings, callback) {
         var results = [];
         var source = {};
-
+        console.log(JSON.stringify(cache, null,2))
         var desiredEncryptionLevelString = settings.ssm_encryption_level || this.settings.ssm_encryption_level.default
         if(!desiredEncryptionLevelString.match(this.settings.ssm_encryption_level.regex)) {
             helpers.addResult(results, 3, 'Settings misconfigured for SSM Encryption Level.');
@@ -100,16 +99,13 @@ module.exports = {
                             helpers.addResult(results, 3, 'No Aliases present, however one is required.', region);
                             return pcb();
                         }
-
-                        async.filter(aliases.data, function(alias, acb){
-                            acb(null, alias.AliasName === param.KeyId)
-                        }, function(err, val){
-                            if(val.length === 0) {
-                                helpers.addResult(results, 3, 'Unable to locate alias: ' + param.KeyId, region);
-                                return pcb();
-                            }
-                            keyId = val[0].TargetKeyId
-                        })
+                        alias = aliases.data.find(a => a.AliasName === param.KeyId)
+                        if (!alias) {
+                            helpers.addResult(results, 3, 'Unable to locate alias: ' + param.KeyId, region);
+                            return pcb();
+                        } else {
+                            keyId = alias.TargetKeyId
+                        }
                     } else {
                         keyId = param.KeyId.split("/")[1]
                     }
