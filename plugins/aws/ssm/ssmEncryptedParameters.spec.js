@@ -114,13 +114,14 @@ var exampleAccessDeniedError = {
     }
 }
 
-describe.only('bucketDefaultEncryption', function () {
+// todo fix copy/paste errors "parameters"
+
+describe.only('ssmEncryptedParameters', function () {
     var awsKey = "abcdefgh-1234-12ab-12ab-012345678910"
     describe('run', function () {
         describe('noSettings', function() {
-            it('should PASS when no instances exist.', function (done) {
-                const cache = createCache({data: []},
-                    {})
+            it('should PASS when no ssm parameters exist.', function (done) {
+                const cache = createCache({data: []}, {});
 
                 const callback = (err, results) => {
                     expect(results.length).to.equal(1)
@@ -131,7 +132,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {}, callback) })
             })
 
-            it('should PASS when the instance \`awskms\` encryption enabled through Alias.', function (done) {
+            it('should PASS when the parameter \`awskms\` encryption enabled through Alias.', function (done) {
                 const cache = createCache({data: [ssmEncryptedAlias]},
                     createDataHolder(awsKey, {data: awsKMSKey}))
 
@@ -144,7 +145,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {}, callback) })
             })
 
-            it('should PASS when the instance \`awskms\` encryption enabled through ARN.', function (done) {
+            it('should PASS when the parameter \`awskms\` encryption enabled through ARN.', function (done) {
                 const cache = createCache({data: [ssmEncryptedArn]},
                     createDataHolder(awsKey, {data: awsKMSKey}))
 
@@ -157,7 +158,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {}, callback) })
             })
 
-            it('should PASS when the instance \`awscmk\` encryption enabled through Alias.', function (done) {
+            it('should PASS when the parameter \`awscmk\` encryption enabled through Alias.', function (done) {
                 const cache = createCache({data: [ssmEncryptedAlias]},
                     createDataHolder(awsKey, {data: awsCustomerKey}))
 
@@ -170,7 +171,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {}, callback) })
             })
 
-            it('should PASS when the instance \`awscmk\` encryption enabled through ARN.', function (done) {
+            it('should PASS when the parameter \`awscmk\` encryption enabled through ARN.', function (done) {
                 const cache = createCache({data: [ssmEncryptedArn]},
                     createDataHolder(awsKey, {data: awsCustomerKey}))
 
@@ -183,7 +184,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {}, callback) })
             })
 
-            it('should PASS when the instance \`externalcmk\` encryption enabled through Alias.', function (done) {
+            it('should PASS when the parameter \`externalcmk\` encryption enabled through Alias.', function (done) {
                 const cache = createCache({data: [ssmEncryptedAlias]},
                     createDataHolder(awsKey, {data: awsExternalKey}))
 
@@ -196,7 +197,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {}, callback) })
             })
 
-            it('should PASS when the instance \`externalcmk\` encryption enabled through ARN.', function (done) {
+            it('should PASS when the parameter \`externalcmk\` encryption enabled through ARN.', function (done) {
                 const cache = createCache({data: [ssmEncryptedArn]},
                     createDataHolder(awsKey, {data: awsExternalKey}))
 
@@ -209,7 +210,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {}, callback) })
             })
 
-            it('should PASS when the instance \`cloudhsm\` encryption enabled through Alias.', function (done) {
+            it('should PASS when the parameter \`cloudhsm\` encryption enabled through Alias.', function (done) {
                 const cache = createCache({data: [ssmEncryptedAlias]},
                     createDataHolder(awsKey, {data: awsHSMKey}))
 
@@ -222,7 +223,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {}, callback) })
             })
 
-            it('should PASS when the instance \`cloudhsm\` encryption enabled through ARN.', function (done) {
+            it('should PASS when the parameter \`cloudhsm\` encryption enabled through ARN.', function (done) {
                 const cache = createCache({data: [ssmEncryptedArn]},
                     createDataHolder(awsKey, {data: awsHSMKey}))
 
@@ -235,7 +236,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {}, callback) })
             })
 
-            it('should FAIL when instance has no encryption enabled.', function (done) {
+            it('should FAIL when parameter has no encryption enabled.', function (done) {
                 const cache = createCache({data: [ssmUnencrypted]},
                     {})
 
@@ -248,7 +249,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {}, callback) })
             })
 
-            it('should FAIL when instance has an error.', function (done) {
+            it('should FAIL when parameter has an error.', function (done) {
                 const cache = createCache(exampleAccessDeniedError,
                     {})
 
@@ -286,9 +287,9 @@ describe.only('bucketDefaultEncryption', function () {
 
                 process.nextTick(() => { defaultEncryption.run(cache, {}, callback) })
             })
-        })
-            describe('awskmsSettings', function() {
-            it('should PASS when no instances exist.', function (done) {
+        });
+        describe('awskmsSettings', function() {
+            it('should PASS when no parameters exist.', function (done) {
                 const cache = createCache({data: []},
                     {})
 
@@ -301,7 +302,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'awskms'}, callback) })
             })
 
-            it('should PASS when the instance \`awskms\` encryption enabled through Alias.', function (done) {
+            it('should PASS when the parameter \`awskms\` encryption enabled through Alias.', function (done) {
                 const cache = createCache({data: [ssmEncryptedAlias]},
                     createDataHolder(awsKey, {data: awsKMSKey}))
 
@@ -314,7 +315,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'awskms'}, callback) })
             })
 
-            it('should PASS when the instance \`awskms\` encryption enabled through ARN.', function (done) {
+            it('should PASS when the parameter \`awskms\` encryption enabled through ARN.', function (done) {
                 const cache = createCache({data: [ssmEncryptedArn]},
                     createDataHolder(awsKey, {data: awsKMSKey}))
 
@@ -327,7 +328,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'awskms'}, callback) })
             })
 
-            it('should PASS when the instance \`awscmk\` encryption enabled through Alias.', function (done) {
+            it('should PASS when the parameter \`awscmk\` encryption enabled through Alias.', function (done) {
                 const cache = createCache({data: [ssmEncryptedAlias]},
                     createDataHolder(awsKey, {data: awsCustomerKey}))
 
@@ -340,7 +341,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'awskms'}, callback) })
             })
 
-            it('should PASS when the instance \`awscmk\` encryption enabled through ARN.', function (done) {
+            it('should PASS when the parameter \`awscmk\` encryption enabled through ARN.', function (done) {
                 const cache = createCache({data: [ssmEncryptedArn]},
                     createDataHolder(awsKey, {data: awsCustomerKey}))
 
@@ -353,7 +354,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'awskms'}, callback) })
             })
 
-            it('should PASS when the instance \`externalcmk\` encryption enabled through Alias.', function (done) {
+            it('should PASS when the parameter \`externalcmk\` encryption enabled through Alias.', function (done) {
                 const cache = createCache({data: [ssmEncryptedAlias]},
                     createDataHolder(awsKey, {data: awsExternalKey}))
 
@@ -366,7 +367,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'awskms'}, callback) })
             })
 
-            it('should PASS when the instance \`externalcmk\` encryption enabled through ARN.', function (done) {
+            it('should PASS when the parameter \`externalcmk\` encryption enabled through ARN.', function (done) {
                 const cache = createCache({data: [ssmEncryptedArn]},
                     createDataHolder(awsKey, {data: awsExternalKey}))
 
@@ -379,7 +380,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'awskms'}, callback) })
             })
 
-            it('should PASS when the instance \`cloudhsm\` encryption enabled through Alias.', function (done) {
+            it('should PASS when the parameter \`cloudhsm\` encryption enabled through Alias.', function (done) {
                 const cache = createCache({data: [ssmEncryptedAlias]},
                     createDataHolder(awsKey, {data: awsHSMKey}))
 
@@ -392,7 +393,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'awskms'}, callback) })
             })
 
-            it('should PASS when the instance \`cloudhsm\` encryption enabled through ARN.', function (done) {
+            it('should PASS when the parameter \`cloudhsm\` encryption enabled through ARN.', function (done) {
                 const cache = createCache({data: [ssmEncryptedArn]},
                     createDataHolder(awsKey, {data: awsHSMKey}))
 
@@ -405,7 +406,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'awskms'}, callback) })
             })
 
-            it('should FAIL when instance has no encryption enabled.', function (done) {
+            it('should FAIL when parameter has no encryption enabled.', function (done) {
                 const cache = createCache({data: [ssmUnencrypted]},
                     {})
 
@@ -418,7 +419,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'awskms'}, callback) })
             })
 
-            it('should FAIL when instance has an error.', function (done) {
+            it('should FAIL when parameter has an error.', function (done) {
                 const cache = createCache(exampleAccessDeniedError,
                     {},
                     {})
@@ -459,7 +460,7 @@ describe.only('bucketDefaultEncryption', function () {
             })
         })
         describe('awscmkSettings', function() {
-            it('should PASS when no instances exist.', function (done) {
+            it('should PASS when no parameters exist.', function (done) {
                 const cache = createCache({data: []},
                     {})
 
@@ -472,7 +473,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'awscmk'}, callback) })
             })
 
-            it('should WARN when the instance \`awskms\` encryption enabled through Alias.', function (done) {
+            it('should WARN when the parameter \`awskms\` encryption enabled through Alias.', function (done) {
                 const cache = createCache({data: [ssmEncryptedAlias]},
                     createDataHolder(awsKey, {data: awsKMSKey}))
 
@@ -485,7 +486,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'awscmk'}, callback) })
             })
 
-            it('should WARN when the instance \`awskms\` encryption enabled through ARN.', function (done) {
+            it('should WARN when the parameter \`awskms\` encryption enabled through ARN.', function (done) {
                 const cache = createCache({data: [ssmEncryptedArn]},
                     createDataHolder(awsKey, {data: awsKMSKey}))
 
@@ -498,7 +499,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'awscmk'}, callback) })
             })
 
-            it('should PASS when the instance \`awscmk\` encryption enabled through Alias.', function (done) {
+            it('should PASS when the parameter \`awscmk\` encryption enabled through Alias.', function (done) {
                 const cache = createCache({data: [ssmEncryptedAlias]},
                     createDataHolder(awsKey, {data: awsCustomerKey}))
 
@@ -511,7 +512,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'awscmk'}, callback) })
             })
 
-            it('should PASS when the instance \`awscmk\` encryption enabled through ARN.', function (done) {
+            it('should PASS when the parameter \`awscmk\` encryption enabled through ARN.', function (done) {
                 const cache = createCache({data: [ssmEncryptedArn]},
                     createDataHolder(awsKey, {data: awsCustomerKey}))
 
@@ -524,7 +525,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'awscmk'}, callback) })
             })
 
-            it('should PASS when the instance \`externalcmk\` encryption enabled through Alias.', function (done) {
+            it('should PASS when the parameter \`externalcmk\` encryption enabled through Alias.', function (done) {
                 const cache = createCache({data: [ssmEncryptedAlias]},
                     createDataHolder(awsKey, {data: awsExternalKey}))
 
@@ -537,7 +538,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'awscmk'}, callback) })
             })
 
-            it('should PASS when the instance \`externalcmk\` encryption enabled through ARN.', function (done) {
+            it('should PASS when the parameter \`externalcmk\` encryption enabled through ARN.', function (done) {
                 const cache = createCache({data: [ssmEncryptedArn]},
                     createDataHolder(awsKey, {data: awsExternalKey}))
 
@@ -550,7 +551,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'awscmk'}, callback) })
             })
 
-            it('should PASS when the instance \`cloudhsm\` encryption enabled through Alias.', function (done) {
+            it('should PASS when the parameter \`cloudhsm\` encryption enabled through Alias.', function (done) {
                 const cache = createCache({data: [ssmEncryptedAlias]},
                     createDataHolder(awsKey, {data: awsHSMKey}))
 
@@ -563,7 +564,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'awscmk'}, callback) })
             })
 
-            it('should PASS when the instance \`cloudhsm\` encryption enabled through ARN.', function (done) {
+            it('should PASS when the parameter \`cloudhsm\` encryption enabled through ARN.', function (done) {
                 const cache = createCache({data: [ssmEncryptedArn]},
                     createDataHolder(awsKey, {data: awsHSMKey}))
 
@@ -576,7 +577,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'awscmk'}, callback) })
             })
 
-            it('should FAIL when instance has no encryption enabled.', function (done) {
+            it('should FAIL when parameter has no encryption enabled.', function (done) {
                 const cache = createCache({data: [ssmUnencrypted]},
                     {})
 
@@ -589,7 +590,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'awscmk'}, callback) })
             })
 
-            it('should FAIL when instance has an error.', function (done) {
+            it('should FAIL when parameter has an error.', function (done) {
                 const cache = createCache(exampleAccessDeniedError,
                     {})
 
@@ -629,7 +630,7 @@ describe.only('bucketDefaultEncryption', function () {
             })
         })
         describe('externalcmkSettings', function() {
-            it('should PASS when no instances exist.', function (done) {
+            it('should PASS when no parameters exist.', function (done) {
                 const cache = createCache({data: []},
                     {})
 
@@ -642,7 +643,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'externalcmk'}, callback) })
             })
 
-            it('should WARN when the instance \`awskms\` encryption enabled through Alias.', function (done) {
+            it('should WARN when the parameter \`awskms\` encryption enabled through Alias.', function (done) {
                 const cache = createCache({data: [ssmEncryptedAlias]},
                     createDataHolder(awsKey, {data: awsKMSKey}))
 
@@ -655,7 +656,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'externalcmk'}, callback) })
             })
 
-            it('should WARN when the instance \`awskms\` encryption enabled through ARN.', function (done) {
+            it('should WARN when the parameter \`awskms\` encryption enabled through ARN.', function (done) {
                 const cache = createCache({data: [ssmEncryptedArn]},
                     createDataHolder(awsKey, {data: awsKMSKey}))
 
@@ -668,7 +669,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'externalcmk'}, callback) })
             })
 
-            it('should WARN when the instance \`awscmk\` encryption enabled through Alias.', function (done) {
+            it('should WARN when the parameter \`awscmk\` encryption enabled through Alias.', function (done) {
                 const cache = createCache({data: [ssmEncryptedAlias]},
                     createDataHolder(awsKey, {data: awsCustomerKey}))
 
@@ -681,7 +682,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'externalcmk'}, callback) })
             })
 
-            it('should WARN when the instance \`awscmk\` encryption enabled through ARN.', function (done) {
+            it('should WARN when the parameter \`awscmk\` encryption enabled through ARN.', function (done) {
                 const cache = createCache({data: [ssmEncryptedArn]},
                     createDataHolder(awsKey, {data: awsCustomerKey}))
 
@@ -694,7 +695,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'externalcmk'}, callback) })
             })
 
-            it('should PASS when the instance \`externalcmk\` encryption enabled through Alias.', function (done) {
+            it('should PASS when the parameter \`externalcmk\` encryption enabled through Alias.', function (done) {
                 const cache = createCache({data: [ssmEncryptedAlias]},
                     createDataHolder(awsKey, {data: awsExternalKey}))
 
@@ -707,7 +708,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'externalcmk'}, callback) })
             })
 
-            it('should PASS when the instance \`externalcmk\` encryption enabled through ARN.', function (done) {
+            it('should PASS when the parameter \`externalcmk\` encryption enabled through ARN.', function (done) {
                 const cache = createCache({data: [ssmEncryptedArn]},
                     createDataHolder(awsKey, {data: awsExternalKey}))
 
@@ -720,7 +721,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'externalcmk'}, callback) })
             })
 
-            it('should PASS when the instance \`cloudhsm\` encryption enabled through Alias.', function (done) {
+            it('should PASS when the parameter \`cloudhsm\` encryption enabled through Alias.', function (done) {
                 const cache = createCache({data: [ssmEncryptedAlias]},
                     createDataHolder(awsKey, {data: awsHSMKey}))
 
@@ -733,7 +734,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'externalcmk'}, callback) })
             })
 
-            it('should PASS when the instance \`cloudhsm\` encryption enabled through ARN.', function (done) {
+            it('should PASS when the parameter \`cloudhsm\` encryption enabled through ARN.', function (done) {
                 const cache = createCache({data: [ssmEncryptedArn]},
                     createDataHolder(awsKey, {data: awsHSMKey}))
 
@@ -746,7 +747,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'externalcmk'}, callback) })
             })
 
-            it('should FAIL when instance has no encryption enabled.', function (done) {
+            it('should FAIL when parameter has no encryption enabled.', function (done) {
                 const cache = createCache({data: [ssmUnencrypted]},
                     {})
 
@@ -759,7 +760,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'externalcmk'}, callback) })
             })
 
-            it('should FAIL when instance has an error.', function (done) {
+            it('should FAIL when parameter has an error.', function (done) {
                 const cache = createCache(exampleAccessDeniedError,
                     {})
 
@@ -799,7 +800,7 @@ describe.only('bucketDefaultEncryption', function () {
             })
         })
         describe('cloudhsmSettings', function() {
-            it('should PASS when no instances exist.', function (done) {
+            it('should PASS when no parameters exist.', function (done) {
                 const cache = createCache({data: []},
                     {})
 
@@ -812,7 +813,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'cloudhsm'}, callback) })
             })
 
-            it('should WARN when the instance \`awskms\` encryption enabled through Alias.', function (done) {
+            it('should WARN when the parameter \`awskms\` encryption enabled through Alias.', function (done) {
                 const cache = createCache({data: [ssmEncryptedAlias]},
                     createDataHolder(awsKey, {data: awsKMSKey}))
 
@@ -825,7 +826,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'cloudhsm'}, callback) })
             })
 
-            it('should WARN when the instance \`awskms\` encryption enabled through ARN.', function (done) {
+            it('should WARN when the parameter \`awskms\` encryption enabled through ARN.', function (done) {
                 const cache = createCache({data: [ssmEncryptedArn]},
                     createDataHolder(awsKey, {data: awsKMSKey}))
 
@@ -838,7 +839,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'cloudhsm'}, callback) })
             })
 
-            it('should WARN when the instance \`awscmk\` encryption enabled through Alias.', function (done) {
+            it('should WARN when the parameter \`awscmk\` encryption enabled through Alias.', function (done) {
                 const cache = createCache({data: [ssmEncryptedAlias]},
                     createDataHolder(awsKey, {data: awsCustomerKey}))
 
@@ -851,7 +852,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'cloudhsm'}, callback) })
             })
 
-            it('should WARN when the instance \`awscmk\` encryption enabled through ARN.', function (done) {
+            it('should WARN when the parameter \`awscmk\` encryption enabled through ARN.', function (done) {
                 const cache = createCache({data: [ssmEncryptedArn]},
                     createDataHolder(awsKey, {data: awsCustomerKey}))
 
@@ -864,7 +865,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'cloudhsm'}, callback) })
             })
 
-            it('should WARN when the instance \`externalcmk\` encryption enabled through Alias.', function (done) {
+            it('should WARN when the parameter \`externalcmk\` encryption enabled through Alias.', function (done) {
                 const cache = createCache({data: [ssmEncryptedAlias]},
                     createDataHolder(awsKey, {data: awsExternalKey}))
 
@@ -877,7 +878,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'cloudhsm'}, callback) })
             })
 
-            it('should WARN when the instance \`externalcmk\` encryption enabled through ARN.', function (done) {
+            it('should WARN when the parameter \`externalcmk\` encryption enabled through ARN.', function (done) {
                 const cache = createCache({data: [ssmEncryptedArn]},
                     createDataHolder(awsKey, {data: awsExternalKey}))
 
@@ -890,7 +891,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'cloudhsm'}, callback) })
             })
 
-            it('should PASS when the instance \`cloudhsm\` encryption enabled through Alias.', function (done) {
+            it('should PASS when the parameter \`cloudhsm\` encryption enabled through Alias.', function (done) {
                 const cache = createCache({data: [ssmEncryptedAlias]},
                     createDataHolder(awsKey, {data: awsHSMKey}))
 
@@ -903,7 +904,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'cloudhsm'}, callback) })
             })
 
-            it('should PASS when the instance \`cloudhsm\` encryption enabled through ARN.', function (done) {
+            it('should PASS when the parameter \`cloudhsm\` encryption enabled through ARN.', function (done) {
                 const cache = createCache({data: [ssmEncryptedArn]},
                     createDataHolder(awsKey, {data: awsHSMKey}))
 
@@ -916,7 +917,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'cloudhsm'}, callback) })
             })
 
-            it('should FAIL when instance has no encryption enabled.', function (done) {
+            it('should FAIL when parameter has no encryption enabled.', function (done) {
                 const cache = createCache({data: [ssmUnencrypted]},
                     {})
 
@@ -929,7 +930,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'cloudhsm'}, callback) })
             })
 
-            it('should FAIL when instance has an error.', function (done) {
+            it('should FAIL when parameter has an error.', function (done) {
                 const cache = createCache(exampleAccessDeniedError,
                     {})
 
@@ -969,7 +970,7 @@ describe.only('bucketDefaultEncryption', function () {
             })
         })
         describe('misconfiguredSettings', function() {
-            it('should FAIL when no instances exist.', function (done) {
+            it('should FAIL when no parameters exist.', function (done) {
                 const cache = createCache({data: []},
                     {})
 
@@ -982,7 +983,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'DNE'}, callback) })
             })
 
-            it('should FAIL when the instance \`awskms\` encryption enabled through Alias.', function (done) {
+            it('should FAIL when the parameter \`awskms\` encryption enabled through Alias.', function (done) {
                 const cache = createCache({data: [ssmEncryptedAlias]},
                     createDataHolder(awsKey, {data: awsKMSKey}))
 
@@ -995,7 +996,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'DNE'}, callback) })
             })
 
-            it('should FAIL when the instance \`awskms\` encryption enabled through ARN.', function (done) {
+            it('should FAIL when the parameter \`awskms\` encryption enabled through ARN.', function (done) {
                 const cache = createCache({data: [ssmEncryptedArn]},
                     createDataHolder(awsKey, {data: awsKMSKey}))
 
@@ -1008,7 +1009,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'DNE'}, callback) })
             })
 
-            it('should FAIL when the instance \`awscmk\` encryption enabled through Alias.', function (done) {
+            it('should FAIL when the parameter \`awscmk\` encryption enabled through Alias.', function (done) {
                 const cache = createCache({data: [ssmEncryptedAlias]},
                     createDataHolder(awsKey, {data: awsCustomerKey}))
 
@@ -1021,7 +1022,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'DNE'}, callback) })
             })
 
-            it('should FAIL when the instance \`awscmk\` encryption enabled through ARN.', function (done) {
+            it('should FAIL when the parameter \`awscmk\` encryption enabled through ARN.', function (done) {
                 const cache = createCache({data: [ssmEncryptedArn]},
                     createDataHolder(awsKey, {data: awsCustomerKey}))
 
@@ -1034,7 +1035,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'DNE'}, callback) })
             })
 
-            it('should FAIL when the instance \`externalcmk\` encryption enabled through Alias.', function (done) {
+            it('should FAIL when the parameter \`externalcmk\` encryption enabled through Alias.', function (done) {
                 const cache = createCache({data: [ssmEncryptedAlias]},
                     createDataHolder(awsKey, {data: awsExternalKey}))
 
@@ -1047,7 +1048,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'DNE'}, callback) })
             })
 
-            it('should FAIL when the instance \`externalcmk\` encryption enabled through ARN.', function (done) {
+            it('should FAIL when the parameter \`externalcmk\` encryption enabled through ARN.', function (done) {
                 const cache = createCache({data: [ssmEncryptedArn]},
                     createDataHolder(awsKey, {data: awsExternalKey}))
 
@@ -1060,7 +1061,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'DNE'}, callback) })
             })
 
-            it('should FAIL when the instance \`cloudhsm\` encryption enabled through Alias.', function (done) {
+            it('should FAIL when the parameter \`cloudhsm\` encryption enabled through Alias.', function (done) {
                 const cache = createCache({data: [ssmEncryptedAlias]},
                     createDataHolder(awsKey, {data: awsHSMKey}))
 
@@ -1073,7 +1074,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'DNE'}, callback) })
             })
 
-            it('should FAIL when the instance \`cloudhsm\` encryption enabled through ARN.', function (done) {
+            it('should FAIL when the parameter \`cloudhsm\` encryption enabled through ARN.', function (done) {
                 const cache = createCache({data: [ssmEncryptedArn]},
                     createDataHolder(awsKey, {data: awsHSMKey}))
 
@@ -1086,7 +1087,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'DNE'}, callback) })
             })
 
-            it('should FAIL when instance has no encryption enabled.', function (done) {
+            it('should FAIL when parameter has no encryption enabled.', function (done) {
                 const cache = createCache({data: [ssmUnencrypted]},
                     {})
 
@@ -1099,7 +1100,7 @@ describe.only('bucketDefaultEncryption', function () {
                 process.nextTick(() => { defaultEncryption.run(cache, {ssm_encryption_level: 'DNE'}, callback) })
             })
 
-            it('should FAIL when instance has an error.', function (done) {
+            it('should FAIL when parameter has an error.', function (done) {
                 const cache = createCache(exampleAccessDeniedError,
                     {})
 
