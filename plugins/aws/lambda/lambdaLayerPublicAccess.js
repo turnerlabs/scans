@@ -54,62 +54,55 @@ module.exports = {
                 var policy = helpers.addSource(cache, source,
                     ['lambda', 'getLayerVersionPolicy', region, layer.LayerName]);
 
-                var result = [0, ''];
-
                 if (!policy) {
-                    result = [3, 'Error querying for policy for a layer'];
-                    helpers.addResult(results, result[0], result[1], region, arn);
+                    helpers.addResult(results, 3, 'Error querying for policy for a layer', region, arn);
 
                 } else if (policy.err) {
                     if (policy.err.code && policy.err.code == 'ResourceNotFoundException') {
-                        result = [0, 'Layer does not have an access policy'];
+                        helpers.addResult(results, 0, 'Layer does not have an access policy', region, arn);
                     } else {
-                        result = [3, 'Error querying for Lambda layer policy: ' + helpers.addError(policy)];
+                        helpers.addResult(results, 3, 'Error querying for Lambda layer policy: ' + helpers.addError(policy), region, arn);
                     }
 
-                    helpers.addResult(results, result[0], result[1], region, arn);
 
                 } else if (policy.data) {
-                    policy.data.Statement.forEach(statement => {
-                        var foundGlobal = [];
-                        var foundNotAllowed = true;
+                    var foundGlobal = false;
+                    var foundNotAllowed = false;
 
-                        var isGlobal = helpers.globalPrincipal(statement.Principal);
+                    policy.data.Statement.forEach(statement => {
 
                         if (statement.Principal) {
+                            var isGlobal = helpers.globalPrincipal(statement.Principal);
+
                             if (isGlobal) {
-                                if (foundGlobal.indexOf(statement.Action) == -1) {
-                                    foundGlobal.push(statement.Action);
-                                }
-                                
+                                foundGlobal = true
                             }
 
                             if (config.lambda_layer_allowed_account_ids.length && statement.Principal.AWS) {
+                                var containsNotAllowed = true;
                                 config.lambda_layer_allowed_account_ids.forEach(id => {
                                     if (statement.Principal.AWS.includes(id)) {
-                                        foundNotAllowed = false;
+                                        containsNotAllowed = false;
                                     }
                                 })
-                            } else {
-                                foundNotAllowed = false;
-                            }
 
-                            if (foundGlobal.length) {
-                                result = [2, 'Layer policy statement allows global access to actions'];
-                            } else if (foundNotAllowed) {
-                                result = [2, 'Layer policy statement allows non-approved users access to actions'];
-                            } else {
-                                result = [0, 'Layer policy statement does not allow global or non-approved access'];
-                            }
+                                foundNotAllowed = containsNotAllowed;
+                            } 
+
                         }
 
-                        helpers.addResult(results, result[0], result[1], region, arn);
-
                     });
-                    
+
+                    if (foundGlobal.length) {
+                        helpers.addResult(results, 2, 'Layer policy statement allows global access to actions', region, arn);
+                    } else if (foundNotAllowed) {
+                        helpers.addResult(results, 2, 'Layer policy statement allows non-approved users access to actions', region, arn);
+                    } else {
+                        helpers.addResult(results, 0, 'Layer policy statement does not allow global or non-approved access', region, arn);
+                    }
+
                 } else {
-                    result = [3, 'Unable to obtain Lambda layer policy'];
-                    helpers.addResult(results, result[0], result[1], region, arn);
+                    helpers.addResult(results, 3, 'Unable to obtain Lambda layer policy', region, arn);
                 }
             }
             
