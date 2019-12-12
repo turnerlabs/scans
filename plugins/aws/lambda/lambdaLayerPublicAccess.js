@@ -13,8 +13,8 @@ module.exports = {
         lambda_layer_allowed_account_ids: {
             name: 'Lambda Layer Allowed Account Ids',
             description: 'Allowed account ids. Providing no accounts in the settings allows any individual account.',
-            regex: '(^$|(\d{12})(,\d{12})*)',
-            default: [],
+            regex: '^((\\d{12})(,\\d{12})*)?$',
+            default: '',
         }
     },
 
@@ -27,13 +27,12 @@ module.exports = {
         if (settings.lambda_layer_allowed_account_ids) {
             config.lambda_layer_allowed_account_ids = settings.lambda_layer_allowed_account_ids.split(",");
         } else {
-            config.lambda_layer_allowed_account_ids = this.settings.lambda_layer_allowed_account_ids.default;
+            config.lambda_layer_allowed_account_ids = [];
         }
 
         async.each(regions.lambda, function(region, rcb){
             var listLayers = helpers.addSource(cache, source,
                 ['lambda', 'listLayers', region]);
-
             if (!listLayers) return rcb();
 
             if (listLayers.err || !listLayers.data) {
@@ -59,7 +58,6 @@ module.exports = {
                 if (!policy) {
                     result = [3, 'Error querying for policy for a layer'];
                     helpers.addResult(results, result[0], result[1], region, arn);
-
                 } else if (policy.err) {
                     if (policy.err.code && policy.err.code == 'ResourceNotFoundException') {
                         result = [0, 'Layer does not have an access policy'];
@@ -81,7 +79,6 @@ module.exports = {
                                 if (foundGlobal.indexOf(statement.Action) == -1) {
                                     foundGlobal.push(statement.Action);
                                 }
-                                
                             }
 
                             if (config.lambda_layer_allowed_account_ids.length && statement.Principal.AWS) {
@@ -106,13 +103,11 @@ module.exports = {
                         helpers.addResult(results, result[0], result[1], region, arn);
 
                     });
-                    
                 } else {
                     result = [3, 'Unable to obtain Lambda layer policy'];
                     helpers.addResult(results, result[0], result[1], region, arn);
                 }
             }
-            
             rcb();
         }, function(){
             callback(null, results, source);
