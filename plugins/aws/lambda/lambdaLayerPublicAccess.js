@@ -13,8 +13,8 @@ module.exports = {
         lambda_layer_allowed_account_ids: {
             name: 'Lambda Layer Allowed Account Ids',
             description: 'Allowed account ids. Providing no accounts in the settings allows any individual account.',
-            regex: '(^$|(\d{12})(,\d{12})*)',
-            default: [],
+            regex: '^((\\d{12})(,\\d{12})*)?$',
+            default: '',
         }
     },
 
@@ -27,13 +27,12 @@ module.exports = {
         if (settings.lambda_layer_allowed_account_ids) {
             config.lambda_layer_allowed_account_ids = settings.lambda_layer_allowed_account_ids.split(",");
         } else {
-            config.lambda_layer_allowed_account_ids = this.settings.lambda_layer_allowed_account_ids.default;
+            config.lambda_layer_allowed_account_ids = [];
         }
 
         async.each(regions.lambda, function(region, rcb){
             var listLayers = helpers.addSource(cache, source,
                 ['lambda', 'listLayers', region]);
-
             if (!listLayers) return rcb();
 
             if (listLayers.err || !listLayers.data) {
@@ -76,6 +75,7 @@ module.exports = {
 
                             if (isGlobal) {
                                 foundGlobal = true
+
                             }
 
                             if (config.lambda_layer_allowed_account_ids.length && statement.Principal.AWS) {
@@ -101,11 +101,11 @@ module.exports = {
                         helpers.addResult(results, 0, 'Layer policy statement does not allow global or non-approved access', region, arn);
                     }
 
+
                 } else {
                     helpers.addResult(results, 3, 'Unable to obtain Lambda layer policy', region, arn);
                 }
             }
-            
             rcb();
         }, function(){
             callback(null, results, source);
