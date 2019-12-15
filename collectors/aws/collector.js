@@ -673,11 +673,11 @@ var postcalls = [
                 filterKey: 'FunctionName',
                 filterValue: 'FunctionName'
             },
-            getLayerVersionPolicy: {
+            listLayerVersions: {
                 reliesOnService: 'lambda',
                 reliesOnCall: 'listLayers',
-                override: true
-
+                filterKey: 'LayerName',
+                filterValue: 'LayerName'
             },
             listTags: {
                 reliesOnService: 'lambda',
@@ -729,6 +729,13 @@ var postcalls = [
         }
     },
     {
+        Lambda: {
+            getLayerVersionPolicy: {
+                reliesOnService: 'lambda',
+                reliesOnCall: 'listLayerVersions',
+                override: true
+            },
+        },
         IAM: {
             getUserPolicy: {
                 reliesOnService: 'iam',
@@ -879,7 +886,6 @@ var collect = function (AWSConfig, settings, callback) {
                             settings.skip_regions.indexOf(region) > -1 &&
                             globalServices.indexOf(service) === -1) return regionCb();
                         if (!collection[serviceLower][callKey][region]) collection[serviceLower][callKey][region] = {};
-
                         // Ensure pre-requisites are met
                         if (callObj.reliesOnService && !collection[callObj.reliesOnService]) return regionCb();
 

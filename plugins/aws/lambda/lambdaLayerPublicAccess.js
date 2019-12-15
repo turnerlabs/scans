@@ -8,7 +8,7 @@ module.exports = {
     more_info: 'The Lambda layer policy should not allow public download of the layer.',
     link: 'https://docs.aws.amazon.com/lambda/latest/dg/configuration-layers.htm',
     recommended_action: 'Correct the Lambda layer policy to prevent access from the public.',
-    apis: ['Lambda:listLayers', 'Lambda:getLayerVersionPolicy'],
+    apis: ['Lambda:listLayers', 'Lambda:listLayerVersions', 'Lambda:getLayerVersionPolicy'],
     settings: {
         lambda_layer_allowed_account_ids: {
             name: 'Lambda Layer Allowed Account Ids',
@@ -50,47 +50,49 @@ module.exports = {
                 var layer = listLayers.data[f];
                 var arn = layer.LayerName;
 
-                var policy = helpers.addSource(cache, source,
+                var policies = helpers.addSource(cache, source,
                     ['lambda', 'getLayerVersionPolicy', region, layer.LayerName]);
 
-                if (!policy) {
+                if (!policies) {
                     helpers.addResult(results, 3, 'Error querying for policy for a layer', region, arn);
 
-                } else if (policy.err) {
-                    if (policy.err.code && policy.err.code == 'ResourceNotFoundException') {
+                } else if (policies.err) {
+                    if (policies.err.code && policies.err.code == 'ResourceNotFoundException') {
                         helpers.addResult(results, 0, 'Layer does not have an access policy', region, arn);
                     } else {
-                        helpers.addResult(results, 3, 'Error querying for Lambda layer policy: ' + helpers.addError(policy), region, arn);
+                        helpers.addResult(results, 3, 'Error querying for Lambda layer policy: ' + helpers.addError(policies), region, arn);
                     }
 
+                } else if (policies.data) {
 
-                } else if (policy.data) {
                     var foundGlobal = false;
                     var foundNotAllowed = false;
 
-                    policy.data.Statement.forEach(statement => {
+                    policies.data.forEach(policy => {
+                        policy.data.Statement.forEach(statement => {
 
-                        if (statement.Principal) {
-                            var isGlobal = helpers.globalPrincipal(statement.Principal);
-
-                            if (isGlobal) {
-                                foundGlobal = true
-
+                            if (statement.Principal) {
+                                var isGlobal = helpers.globalPrincipal(statement.Principal);
+    
+                                if (isGlobal) {
+                                    foundGlobal = true
+    
+                                }
+    
+                                if (config.lambda_layer_allowed_account_ids.length && statement.Principal.AWS) {
+                                    var containsNotAllowed = true;
+                                    config.lambda_layer_allowed_account_ids.forEach(id => {
+                                        if (statement.Principal.AWS.includes(id)) {
+                                            containsNotAllowed = false;
+                                        }
+                                    })
+    
+                                    foundNotAllowed = containsNotAllowed;
+                                } 
+    
                             }
-
-                            if (config.lambda_layer_allowed_account_ids.length && statement.Principal.AWS) {
-                                var containsNotAllowed = true;
-                                config.lambda_layer_allowed_account_ids.forEach(id => {
-                                    if (statement.Principal.AWS.includes(id)) {
-                                        containsNotAllowed = false;
-                                    }
-                                })
-
-                                foundNotAllowed = containsNotAllowed;
-                            } 
-
-                        }
-
+    
+                        });
                     });
 
                     if (foundGlobal.length) {
