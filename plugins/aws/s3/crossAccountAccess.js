@@ -11,7 +11,7 @@ module.exports = {
         s3_account_whitelist: {
             name: 'S3 Policy Account Whitelist',
             description: `A comma-separated list of AWS Account IDs that S3 bucket policies are allowed to trust. ("${ANY}" = any specific account, "" = no cross-account)`,
-            regex: '^(|\\d{0,12}(,\\d{12})*|\\*)$',
+            regex: '^(|\\d{0,12}(,\\d{12})*|any)$',
             default: ANY,
         },
     },
@@ -112,6 +112,7 @@ function crossAccountPrincipal(principal, accountId, whitelist) {
     }
 
     for (a in awsPrincipals) {
+        if (awsPrincipals[a] === '*') return true;
         const principalAccount = awsPrincipals[a].split('arn:aws:iam::')[1].split(':')[0];
         if (principalAccount !== accountId && !whitelist.includes(principalAccount)) {
             return true;
