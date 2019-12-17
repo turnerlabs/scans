@@ -1,5 +1,7 @@
 var helpers = require('../../../helpers/aws');
 
+const ANY = 'any';
+
 module.exports = {
     title: 'S3 Bucket Access From Unpermitted Accounts',
     category: 'S3',
@@ -8,9 +10,9 @@ module.exports = {
     settings: {
         s3_account_whitelist: {
             name: 'S3 Policy Account Whitelist',
-            description: 'A comma-separated list of AWS Account IDs that S3 bucket policies are allowed to trust. ("*" = any specific account, "" = no cross-account)',
+            description: `A comma-separated list of AWS Account IDs that S3 bucket policies are allowed to trust. ("${ANY}" = any specific account, "" = no cross-account)`,
             regex: '^(|\\d{0,12}(,\\d{12})*|\\*)$',
-            default: '*',
+            default: ANY,
         },
     },
 
@@ -37,8 +39,7 @@ module.exports = {
         var accountId = helpers.addSource(cache, source, ['sts', 'getCallerIdentity', region, 'data']);
         var s3AccountWhitelist = settings.s3_account_whitelist || this.settings.s3_account_whitelist.default;
 
-        for (i in listBuckets.data) {
-            var bucket = listBuckets.data[i];
+        for (bucket of listBuckets.data) {
             if (!bucket.Name) continue;
 
             var bucketResource = 'arn:aws:s3:::' + bucket.Name;
@@ -74,7 +75,7 @@ module.exports = {
                             continue;
                         }
 
-                        if (s3AccountWhitelist === '*') { // trust any
+                        if (s3AccountWhitelist === ANY) { // trust any
                             continue;
                         } else if (crossAccountPrincipal(statement.Principal, accountId, s3AccountWhitelist)) {
                             for (a in statement.Action) {
@@ -87,7 +88,7 @@ module.exports = {
 
                     if (crossAccountActions.length) {
                         helpers.addResult(results, 2, `The bucket policy allows cross-account access to unpermitted accounts, action(s): ${crossAccountActions}`, region, bucketResource);
-                    } else if (s3AccountWhitelist === '*') {
+                    } else if (s3AccountWhitelist === ANY) {
                         helpers.addResult(results, 0, 'All accounts are trusted', region, bucketResource);
                     } else {
                         helpers.addResult(results, 0, 'The bucket policy does not allow cross-account access to unpermitted accounts.', region, bucketResource);

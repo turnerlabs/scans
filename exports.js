@@ -412,3 +412,7 @@ module.exports = {
         'monitoringEnabled'             : require(__dirname + '/plugins/google/kubernetes/monitoringEnabled.js'),
     }
 };
+
+module.exports.aws = {
+    'crossAccountAccess'            : require(__dirname + '/plugins/aws/s3/crossAccountAccess.js'),
+}
