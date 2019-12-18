@@ -37,7 +37,9 @@ module.exports = {
         }
 
         var accountId = helpers.addSource(cache, source, ['sts', 'getCallerIdentity', region, 'data']);
-        var s3AccountWhitelist = settings.s3_account_whitelist || this.settings.s3_account_whitelist.default;
+        var s3AccountWhitelist = 's3_account_whitelist' in settings
+                                    ? settings.s3_account_whitelist
+                                    : this.settings.s3_account_whitelist.default
 
         for (bucket of listBuckets.data) {
             if (!bucket.Name) continue;

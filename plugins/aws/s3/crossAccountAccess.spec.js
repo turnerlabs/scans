@@ -109,7 +109,7 @@ const createCacheTrustAllAWS = () => {
     };
 };
 
-describe.only('crossAccountAccess', function () {
+describe('crossAccountAccess', function () {
     describe('run', function () {
         it('should PASS if trusts the same account', function (done) {
             const cache = createCache(CURRENT_ACCOUNT);
