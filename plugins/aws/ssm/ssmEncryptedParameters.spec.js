@@ -116,7 +116,7 @@ var exampleAccessDeniedError = {
 
 // todo fix copy/paste errors "parameters"
 
-describe.only('ssmEncryptedParameters', function () {
+describe('ssmEncryptedParameters', function () {
     var awsKey = "abcdefgh-1234-12ab-12ab-012345678910"
     describe('run', function () {
         describe('noSettings', function() {
