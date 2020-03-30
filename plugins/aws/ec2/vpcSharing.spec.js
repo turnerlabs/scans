@@ -14,7 +14,7 @@ const createCache = (sharedResources) => {
     };
 };
 
-describe.only('vpcSharing', function () {
+describe('vpcSharing', function () {
     describe('run', function () {
         it('should PASS if no shared resources', function (done) {
             const cache = createCache([]);
