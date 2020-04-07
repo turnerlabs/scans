@@ -222,7 +222,11 @@ var calls = {
         describeRouteTables: {
             property: 'RouteTables',
             paginate: 'NextToken'
-        }
+        },
+        describeTags: {
+            property: 'Tags',
+            paginate: 'NextToken',
+        },
     },
     ECR: {
         describeRepositories: {
@@ -355,6 +359,14 @@ var calls = {
             paginateReqProp: 'Marker'
         }
     },
+    Organizations: {
+        describeOrganization: {
+            property: 'Organization',
+        },
+        listHandshakesForAccount: {
+            property: 'Handshakes',
+        },
+    },
     RDS: {
         describeDBInstances: {
             property: 'DBInstances',
@@ -463,6 +475,12 @@ var calls = {
         getCallerIdentity: {
             property: 'Account'
         }
+    },
+    Support: {
+        describeTrustedAdvisorChecks: {
+            property: 'checks',
+            params: { language: 'en' },
+        },
     },
     Transfer: {
         listServers: {
@@ -576,6 +594,11 @@ var postcalls = [
                 signatureVersion: 'v4',
                 override: true
             },
+            getBucketLocation: {
+                deleteRegion: true,
+                signatureVersion: 'v4',
+                override: true
+            },
             getPublicAccessBlock: {
                 deleteRegion: true,
                 signatureVersion: 'v4',
@@ -592,7 +615,7 @@ var postcalls = [
                 reliesOnService: 'ec2',
                 reliesOnCall: 'describeVpcs',
                 override: true
-            }
+            },
         },
         ECR: {
             getRepositoryPolicy: {
@@ -776,6 +799,14 @@ var postcalls = [
                 reliesOnCall: 'listQueues',
                 override: true
             }
+        },
+        Support: {
+            describeTrustedAdvisorCheckResult: {
+                reliesOnService: 'support',
+                reliesOnCall: 'describeTrustedAdvisorChecks',
+                filterKey: 'checkId',
+                filterValue: 'id'
+            },
         },
         WAFRegional: {
             listResourcesForWebACL: {
