@@ -9,11 +9,19 @@ module.exports = {
     link: 'https://docs.aws.amazon.com/elasticsearch-service/latest/developerguide/es-vpc.html',
     recommended_action: 'Configure the ElasticSearch domain to use a VPC endpoint for secure VPC communication.',
     apis: ['ES:listDomainNames', 'ES:describeElasticsearchDomain'],
+    settings: {
+        allow_public_only_if_ip_condition_policy: {
+            name: 'Allow Public Only If Ip Condition Policy',
+            description: 'Allows public ElasticSearch endpoints if set to true and if there is an Ip Condition policy',
+            default: false
+        },
+    },
 
     run: function (cache, settings, callback) {
         var results = [];
         var source = {};
         var regions = helpers.regions(settings);
+        var config = {allow_public_only_if_ip_condition_policy: settings.allow_public_only_if_ip_condition_policy || this.settings.allow_public_only_if_ip_condition_policy.default};
 
         async.each(regions.es, function (region, rcb) {
             var listDomainNames = helpers.addSource(cache, source,
@@ -47,14 +55,31 @@ module.exports = {
                 } else {
                     var localDomain = describeElasticsearchDomain.data.DomainStatus;
 
+                    var policies = helpers.normalizePolicyDocument(localDomain.AccessPolicies);
+                    var containsIpPolicy = false;
+
+                    for (p in policies) {
+                        var policy = policies[p]
+                        if (policy.Condition && policy.Condition.IpAddress) {
+                            containsIpPolicy = true;
+                        }
+                    }
+                    
+
                     if (localDomain.VPCOptions &&
                         localDomain.VPCOptions.VPCId &&
                         localDomain.VPCOptions.VPCId.length) {
                         helpers.addResult(results, 0,
                             'ES domain is configured to use a VPC endpoint', region, localDomain.ARN);
                     } else {
-                        helpers.addResult(results, 2,
-                            'ES domain is configured to use a public endpoint', region, localDomain.ARN);
+                        if (containsIpPolicy && config.allow_public_only_if_ip_condition_policy) {
+                            helpers.addResult(results, 0,
+                                'ES domain is configured to use a public endpoint, but contains an Ip Condition policy', region, localDomain.ARN);
+                        } else {
+                            helpers.addResult(results, 2,
+                                'ES domain is configured to use a public endpoint', region, localDomain.ARN);
+                        }
+
                     }
                 }
             });
