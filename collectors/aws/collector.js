@@ -877,8 +877,7 @@ var collect = function (AWSConfig, settings, callback) {
                     globalServices.indexOf(service) === -1) return regionCb();
                 if (!collection[serviceLower][callKey][region]) collection[serviceLower][callKey][region] = {};
 
-                var LocalAWSConfig = JSON.parse(JSON.stringify(AWSConfig));
-                LocalAWSConfig.region = region;
+                var LocalAWSConfig = Object.assign({}, AWSConfig, {region: region});
 
                 if (callObj.override) {
                     collectors[serviceLower][callKey](LocalAWSConfig, collection, function () {
@@ -982,7 +981,7 @@ var collect = function (AWSConfig, settings, callback) {
                             !collection[callObj.reliesOnService][callObj.reliesOnCall][region].data ||
                             !collection[callObj.reliesOnService][callObj.reliesOnCall][region].data.length)) return regionCb();
 
-                        var LocalAWSConfig = JSON.parse(JSON.stringify(AWSConfig));
+                        var LocalAWSConfig = Object.assign({}, AWSConfig);
                         if (callObj.deleteRegion) {
                             //delete LocalAWSConfig.region;
                             LocalAWSConfig.region = settings.govcloud ? 'us-gov-west-1' : settings.china ? 'cn-north-1' : 'us-east-1';

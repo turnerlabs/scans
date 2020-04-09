@@ -1,3 +1,4 @@
+var AWS = require('aws-sdk');
 var csvWriter = require('csv-write-stream');
 var fs = require('fs');
 

@@ -56,13 +56,17 @@
     "azure-graph": "^4.3.0",
     "azure-keyvault": "^3.0.4",
     "azure-storage": "^2.10.2",
+    "bluebird": "^3.7.1",
     "csv-write-stream": "^2.0.0",
+    "deep-equal-in-any-order": "^1.0.21",
     "fast-safe-stringify": "^2.0.6",
     "googleapis": "^40.0.1",
+    "lodash.once": "^4.1.1",
     "ms-rest-azure": "^2.5.9"
   },
   "devDependencies": {
     "chai": "^4.2.0",
+    "chai-as-promised": "^7.1.1",
     "mocha": "^6.1.4",
     "nodemon": "^1.19.4",
     "nyc": "^14.1.1"
