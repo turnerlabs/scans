@@ -349,7 +349,7 @@ var calls = {
             paginate: 'NextMarker',
             paginateReqProp: 'Marker',
             params: {
-                Limit: 100
+                Limit: 1000
             }
         }
     },
