@@ -94,5 +94,52 @@ describe('esPublicEndpoint', function () {
 
             es.run(cache, {}, callback);
         })
+
+        it('should give passing result if Ip condition setting is passed', function (done) {
+            const callback = (err, results) => {
+                expect(results.length).to.equal(1)
+                expect(results[0].status).to.equal(0)
+                expect(results[0].message).to.include('ES domain is configured to use a public endpoint, but contains an Ip Condition policy')
+                done()
+            };
+
+            const cache = createCache(
+                [
+                  {
+                    DomainName: 'mydomain'
+                  }
+                ],
+                {
+                    DomainStatus: {
+                        DomainName: 'mydomain',
+                        ARN: 'arn:1234',
+                        VPCOptions: {},
+                        AccessPolicies: {
+                            "Version": "2012-10-17",
+                            "Statement": [
+                              {
+                                "Effect": "Allow",
+                                "Principal": {
+                                  "AWS": "*"
+                                },
+                                "Action": [
+                                    "es:ESHttp*"
+                                ],
+                                "Condition": {
+                                  "IpAddress": {
+                                    "aws:SourceIp": [
+                                      "192.0.2.0/24"
+                                    ]
+                                  }
+                                },
+                              }
+                            ]
+                        },
+                    }
+                }
+            );
+
+            es.run(cache, {allow_public_only_if_ip_condition_policy: true}, callback);
+        })
     })
 })
