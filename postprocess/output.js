@@ -54,13 +54,13 @@ module.exports = {
 
         return {
             writer: writer,
-        
+
             startCompliance: function(plugin, pluginKey, compliance) {
             },
-        
+
             endCompliance: function(plugin, pluginKey, compliance) {
             },
-        
+
             writeResult: function (result, plugin, pluginKey) {
                 var statusWord;
                 if (result.status === 0) {
@@ -72,13 +72,13 @@ module.exports = {
                 } else {
                     statusWord = 'UNKNOWN';
                 }
-        
+
                 this.writer.write([plugin.category, plugin.title,
                                    (result.resource || 'N/A'),
                                    (result.region || 'Global'),
                                    statusWord, result.message]);
             },
-        
+
             close: function () {
                 this.writer.end();
             }
@@ -94,13 +94,13 @@ module.exports = {
       var results = [];
       return {
           stream: stream,
-      
+
           startCompliance: function(plugin, pluginKey, compliance) {
           },
-      
+
           endCompliance: function(plugin, pluginKey, compliance) {
           },
-      
+
           writeResult: function (result, plugin, pluginKey) {
               var statusWord;
               if (result.status === 0) {
@@ -112,7 +112,7 @@ module.exports = {
               } else {
                   statusWord = 'UNKNOWN';
               }
-              
+
               results.push({
                 plugin: pluginKey,
                 category: plugin.category,
@@ -120,12 +120,13 @@ module.exports = {
                 resource: result.resource || 'N/A',
                 region: result.region || 'Global',
                 status: statusWord,
+                statusNumber: result.status,
                 message: result.message
               })
           },
-      
+
           close: function () {
-            this.stream.write(JSON.stringify(results));              
+            this.stream.write(JSON.stringify(results));
             this.stream.end();
           }
       }
@@ -133,18 +134,18 @@ module.exports = {
 
     /***
      * Creates an output handler that writes output in the JUnit XML format.
-     * 
+     *
      * This constructs the XML directly, rather than through a library so that
      * we don't need to pull in another NPM dependency. This keeps things
      * simple.
-     * 
+     *
      * @param {fs.WriteStream} stream The stream to write to or an object that
      * obeys the writeable stream contract.
      */
     createJunit: function (stream) {
         return {
             stream: stream,
-        
+
             /**
              * The test suites are how we represent result - each test suite
              * maps to one plugin (more specifically the plugin key) so that
@@ -154,10 +155,10 @@ module.exports = {
 
             startCompliance: function(plugin, pluginKey, compliance) {
             },
-        
+
             endCompliance: function(plugin, pluginKey, compliance) {
             },
-        
+
             /**
              * Adds the result to be written to the output file.
              */
@@ -204,7 +205,7 @@ module.exports = {
                     error: error
                 });
             },
-        
+
             /**
              * Closes the output handler. For this JUnit output handler, all of
              * the work happens on close since we need to know information
@@ -221,7 +222,7 @@ module.exports = {
                 }
 
                 this.stream.write('</testsuites>\n');
-                
+
                 this.stream.end();
             },
 
@@ -262,7 +263,7 @@ module.exports = {
                     } else {
                         this.stream.write('/>\n');
                     }
-                    
+
                 }
 
                 // Same thing with properties above - this just needs to exist
@@ -295,22 +296,75 @@ module.exports = {
             }
         }
     },
+
+    // This creates a multiplexer-like object that forwards the
+    // call onto any output handler that has been defined. This
+    // allows us to simply send the output to multiple handlers
+    // and the caller doesn't need to worry about that part.
+    multiplexer(outputs, collectionOutputs, ignoreOkStatus) {
+        return {
+            startCompliance: function(plugin, pluginKey, compliance) {
+                for (var output of outputs) {
+                    if (output.startCompliance) {
+                        output.startCompliance(plugin, pluginKey, compliance);
+                    }
+                }
+            },
+
+            endCompliance: function(plugin, pluginKey, compliance) {
+                for (var output of outputs) {
+                    if (output.endCompliance) {
+                        output.endCompliance(plugin, pluginKey, compliance);
+                    }
+                }
+            },
+
+            writeResult: function (result, plugin, pluginKey) {
+                for (var output of outputs) {
+                    if (output.writeResult) {
+                        if (!(ignoreOkStatus && result.status === 0)) {
+                            output.writeResult(result, plugin, pluginKey);
+                        }
+                    }
+                }
+            },
+
+            writeCollection: function(collection, providerName) {
+                for (var collectionOutput of collectionOutputs)
+                    if(collectionOutput.write) {
+                        collectionOutput.write(collection, providerName)
+                    }
+            },
+
+            close: function () {
+                for (var collectionOutput of collectionOutputs)
+                    if(collectionOutput.close) {
+                        collectionOutput.close()
+                    }
+                for (var output of outputs) {
+                    if (output.close) {
+                        output.close();
+                    }
+                }
+            }
+        }
+    },
     /**
      * Creates an output handler depending on the arguments list as expected
      * in the command line format. If multiple output handlers are specified
      * in the arguments, then constructs a unified view so that it appears that
      * there is only one output handler.
-     * 
+     *
      * @param {string[]} argv Array of command line arguments (may contain
      * arguments that are not relevant to constructing output handlers).
-     * 
+     *
      * @return A object that obeys the output handler contract. This may be
      * one output handler or one that forwards function calls to a group of
      * output handlers.
      */
     create: function (argv) {
         var outputs = [];
-        var collectionOutput;
+        var collectionOutputs = [];
 
         // Creates the handlers for writing output.
         var addCsvOutput = argv.find(function (arg) {
@@ -338,7 +392,7 @@ module.exports = {
         })
         if(addCollectionOutput) {
             var stream = fs.createWriteStream(addCollectionOutput.substr(13))
-            collectionOutput = this.createCollection(stream)
+            collectionOutputs.append(this.createCollection(stream))
         }
 
         // Write to console if specified or by default if there is not
@@ -352,45 +406,6 @@ module.exports = {
             return arg.startsWith('--ignore-ok');
         })
 
-        // This creates a multiplexer-like object that forwards the
-        // call onto any output handler that has been defined. This
-        // allows us to simply send the output to multiple handlers
-        // and the caller doesn't need to worry about that part.
-        return {
-            startCompliance: function(plugin, pluginKey, compliance) {
-                for (var output of outputs) {
-                    output.startCompliance(plugin, pluginKey, compliance);
-                }
-            },
-
-            endCompliance: function(plugin, pluginKey, compliance) {
-                for (var output of outputs) {
-                    output.endCompliance(plugin, pluginKey, compliance);
-                }
-            },
-
-            writeResult: function (result, plugin, pluginKey) {
-                for (var output of outputs) {
-                    if (!(ignoreOkStatus && result.status === 0)) {
-                        output.writeResult(result, plugin, pluginKey);
-                    }
-                }
-            },
-
-            writeCollection: function(collection, providerName) {
-                if(collectionOutput) {
-                    collectionOutput.write(collection, providerName)
-                }
-            },
-
-            close: function () {
-                if(collectionOutput) {
-                    collectionOutput.close()
-                }
-                for (var output of outputs) {
-                    output.close();
-                }
-            }
-        }
+        return this.multiplexer(outputs, collectionOutputs, ignoreOkStatus);
     }
 }

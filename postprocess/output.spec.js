@@ -28,7 +28,7 @@ describe('output', function () {
             var handler = output.createJunit(buffer);
             handler.close();
             expect(buffer.cache).to.equal(
-                '<?xml version="1.0" encoding="UTF-8" ?>\n' + 
+                '<?xml version="1.0" encoding="UTF-8" ?>\n' +
                 '<testsuites>\n</testsuites>\n');
         })
 
@@ -98,7 +98,32 @@ describe('output', function () {
             var handler = output.createJson(buffer);
             handler.writeResult({status: 0}, {title:'myTitle'}, 'key');
             handler.close();
-            expect(buffer.cache).to.equal('[{"plugin":"key","title":"myTitle","resource":"N/A","region":"Global","status":"OK"}]');
+            expect(buffer.cache).to.equal('[{"plugin":"key","title":"myTitle","resource":"N/A","region":"Global","status":"OK","statusNumber":0}]');
+        })
+    })
+
+    describe('multiplexer', function () {
+        it('should write to all outputs', function () {
+            var buffer1 = createOutputBuffer();
+            var buffer2 = createOutputBuffer();
+            var jsonOutput1 = output.createJson(buffer1);
+            var jsonOutput2 = output.createJson(buffer2);
+            var multiplexer = output.multiplexer([jsonOutput1, jsonOutput2], [], false);
+            multiplexer.writeResult({status: 0}, {title:'myTitle'}, 'key');
+            multiplexer.close();
+            expect(buffer1.cache).to.equal(buffer2.cache);
+            expect(buffer1.cache).to.equal('[{"plugin":"key","title":"myTitle","resource":"N/A","region":"Global","status":"OK","statusNumber":0}]');
+        })
+        it('should write to all collectionOutputs', function () {
+            var buffer1 = createOutputBuffer();
+            var buffer2 = createOutputBuffer();
+            var collectionOutput1 = output.createCollection(buffer1);
+            var collectionOutput2 = output.createCollection(buffer2);
+            var multiplexer = output.multiplexer([], [collectionOutput1, collectionOutput2], false);
+            multiplexer.writeCollection({some: 'data'}, 'AWS');
+            multiplexer.close();
+            expect(buffer1.cache).to.equal(buffer2.cache);
+            expect(buffer1.cache).to.equal('{"AWS":{"some":"data"}}');
         })
     })
 

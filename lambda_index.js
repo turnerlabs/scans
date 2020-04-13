@@ -1,6 +1,6 @@
 var AWS = require('aws-sdk');
 var engine = require('./engine.js');
-var lambdaOutput = require('./postprocess/lambda_output.js');
+var output = require('./postprocess/output.js');
 var configs = require('./lambda_config.js')
 var util = require('util')
 var promisifiedEngine = util.promisify(engine)
@@ -31,15 +31,26 @@ async function writeToS3(bucket, resultsToWrite, templatePrefix, s3Prefix) {
         var results = JSON.stringify(resultsToWrite, null, 2);
         console.log(`Writing results to s3://${bucket}/${key}`)
         console.log(`Writing results to s3://${bucket}/${latestKey}`)
-        require('fs').writeFileSync('runresults.js', results);
+        // require('fs').writeFileSync('runresults.json', results);
         var promises = [
-            // s3.putObject({Bucket: bucket, Key: latestKey, Body: results}).promise(),
-            // s3.putObject({Bucket: bucket, Key: key, Body: results}).promise()
+            s3.putObject({Bucket: bucket, Key: latestKey, Body: results}).promise(),
+            s3.putObject({Bucket: bucket, Key: key, Body: results}).promise()
         ];
 
         return Promise.all(promises);
     }
     return []
+}
+
+// "memoryStream" to get outputs instead of using a file stream
+class MemoryStream {
+    constructor() {
+        this.data = ''
+    }
+    write(chunk) {
+        this.data += chunk;
+    }
+    end() {}
 }
 
 exports.handler = async function(event, context) {
@@ -48,7 +59,10 @@ exports.handler = async function(event, context) {
         //Object Initialization//
         var partition = context.invokedFunctionArn.split(':')[1];
         var configurations = await configs.getConfigurations(configs.parseEvent(event), partition);
-        var outputHandler = lambdaOutput.create();
+
+        jsonOutput = new MemoryStream();
+        collectionOutput = new MemoryStream();
+        var outputHandler = output.multiplexer([output.createJson(jsonOutput)], [output.createCollection(collectionOutput)], false);
         //Settings Configuration//
         console.log("Configuring Settings");
         var settings = configurations.settings || {};
@@ -70,10 +84,13 @@ exports.handler = async function(event, context) {
 
         var enginePromise = promisifiedEngine(AWSConfig, AzureConfig, GitHubConfig, OracleConfig, GoogleConfig, settings, outputHandler);
 
-        const collectionData = await enginePromise;
-        var results = outputHandler.getResuls();
+        await enginePromise;
+        var results = {
+            collectionData: JSON.parse(collectionOutput.data),
+            resultsData: JSON.parse(jsonOutput.data)
+        }
         console.assert(results.collectionData, "No Collection Data found.");
-        console.assert(results.ResultsData, "No Results Data found.");
+        console.assert(results.resultsData, "No Results Data found.");
         await writeToS3(process.env.RESULT_BUCKET, results, process.env.RESULT_PREFIX, configurations.s3Prefix);
         return 'Ok';
     } catch(err) {
