@@ -1,6 +1,6 @@
 var assert = require('assert');
 var expect = require('chai').expect;
-var es = require('./esSensitiveData');
+var es = require('./esRequireIAMAuth');
 
 const createCache = (listData, descData) => {
     return {
@@ -38,7 +38,7 @@ describe('esPublicEndpoint', function () {
                 {}
             );
 
-            es.run(cache, {contains_sensitive_data: true}, callback);
+            es.run(cache, {es_require_iam_authentication: true}, callback);
         })
 
         it('should give positive result if there are no access policies', function (done) {
@@ -62,7 +62,7 @@ describe('esPublicEndpoint', function () {
                 }
             );
 
-            es.run(cache, {contains_sensitive_data: true}, callback);
+            es.run(cache, {es_require_iam_authentication: true}, callback);
         })
 
         it('should give error result if Principal is global', function (done) {
@@ -72,7 +72,7 @@ describe('esPublicEndpoint', function () {
                 expect(results[0].message).to.include('ES domain has policy that does not require auth')
                 done()
             };
-    
+
             const cache = createCache(
                 [
                   {
@@ -103,14 +103,14 @@ describe('esPublicEndpoint', function () {
                           }
                         ]
                     },
-    
+
                   }
                 }
             );
-    
-            es.run(cache, {contains_sensitive_data: true}, callback);
+
+            es.run(cache, {es_require_iam_authentication: true}, callback);
         })
-    
+
         it('should give error result if Principal does not exist', function (done) {
             const callback = (err, results) => {
                 expect(results.length).to.equal(1)
@@ -118,7 +118,7 @@ describe('esPublicEndpoint', function () {
                 expect(results[0].message).to.include('ES domain has policy that does not require auth')
                 done()
             };
-    
+
             const cache = createCache(
                 [
                   {
@@ -146,12 +146,12 @@ describe('esPublicEndpoint', function () {
                           }
                         ]
                     },
-    
+
                   }
                 }
             );
-    
-            es.run(cache, {contains_sensitive_data: true}, callback);
+
+            es.run(cache, {es_require_iam_authentication: true}, callback);
         })
 
         it('should give error result if Principal does not exist', function (done) {
@@ -161,7 +161,7 @@ describe('esPublicEndpoint', function () {
                 expect(results[0].message).to.include('ES domain has no access policies that do not require auth')
                 done()
             };
-    
+
             const cache = createCache(
                 [
                   {
@@ -189,12 +189,12 @@ describe('esPublicEndpoint', function () {
                           }
                         ]
                     },
-    
+
                   }
                 }
             );
-    
-            es.run(cache, {contains_sensitive_data: true}, callback);
+
+            es.run(cache, {es_require_iam_authentication: true}, callback);
         })
 
     })
