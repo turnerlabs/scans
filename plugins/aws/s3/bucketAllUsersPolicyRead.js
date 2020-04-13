@@ -76,7 +76,7 @@ module.exports = {
             } else {
                 try {
                     var policyJson = JSON.parse(getBucketPolicy.data.Policy);
-                    getBucketPolicy.data.Policy = policyJson;
+                    // getBucketPolicy.data.Policy = policyJson;
 
                     if (!policyJson || !policyJson.Statement) {
                         helpers.addResult(results, 3, `Error querying for bucket policy for bucket: ${bucket.Name}: Policy JSON is invalid or does not contain valid statements.`, 'global', bucketResource);
