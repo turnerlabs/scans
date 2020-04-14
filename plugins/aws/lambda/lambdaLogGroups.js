@@ -32,37 +32,27 @@ module.exports = {
                 return rcb();
             }
 
+            var describeLogGroups = helpers.addSource(cache, source, ['cloudwatchlogs', 'describeLogGroups', region]);
+
             for (f in listFunctions.data) {
                 var func = listFunctions.data[f];
                 var arn = func.FunctionArn;
-
-                var describeLogGroups = helpers.addSource(cache, source, ['cloudwatchlogs', 'describeLogGroups', region]);
 
                 var result = [0, ''];
 
                 if (!describeLogGroups.data) {
                     result = [3, 'Error querying for log groups'];
                 } else if (describeLogGroups.err) {
-                    if (describeLogGroups.err.code && policy.err.code == 'ResourceNotFoundException') {
-                        result = [0, 'Function does not have a log group attached to it'];
-                    } else {
-                        result = [3, 'Error querying for log groups: ' + helpers.addError(describeLogGroups)];
-                    }
+                    result = [3, 'Error querying for log groups: ' + helpers.addError(describeLogGroups)];
                 } else if (describeLogGroups.data) {
-                    var found = [];
-                    for (n in describeLogGroups.data) {
-                        var lg = describeLogGroups.data[n];
-                        var lgFunctionName = lg.logGroupName.split("/")[3];
+                    var found = describeLogGroups.data.find(function(lg) {
+                        return lg.logGroupName == "/aws/lambda/" + func.FunctionName;
+                    });
 
-                        if (lgFunctionName && lgFunctionName == func.FunctionName) {
-                            found.push(lg.arn);
-                        }
-                    }
-
-                    if (found.length) {
-                        result = [0, 'Function has log groups attached: ' + found.join(', ')];
+                    if (found) {
+                        result = [0, 'Function has log group: ' + found.logGroupName];
                     } else {
-                        result = [2, 'Function does not have a log group attached to it'];
+                        result = [2, 'Function has no log group'];
                     }
                 } else {
                     result = [3, 'Unable to obtain log groups for Lambda'];
@@ -70,7 +60,7 @@ module.exports = {
 
                 helpers.addResult(results, result[0], result[1], region, arn);
             }
-            
+
             rcb();
         }, function(){
             callback(null, results, source);
