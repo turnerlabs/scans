@@ -149,6 +149,7 @@ module.exports = {
         'bucketAllUsersAclRead'         : require(__dirname + '/plugins/aws/s3/bucketAllUsersAclRead.js'),
         'bucketAllUsersAclWrite'        : require(__dirname + '/plugins/aws/s3/bucketAllUsersAclWrite.js'),
         'bucketEncryptionInTransit'     : require(__dirname + '/plugins/aws/s3/bucketEncryptionInTransit.js'),
+        'accountPublicAccessBlock'      : require(__dirname + '/plugins/aws/s3/accountPublicAccessBlock.js'),
         'bucketVersioning'              : require(__dirname + '/plugins/aws/s3/bucketVersioning.js'),
         'bucketLogging'                 : require(__dirname + '/plugins/aws/s3/bucketLogging.js'),
         's3DefaultEncryption'           : require(__dirname + '/plugins/aws/s3/s3DefaultEncryption.js'),
