@@ -11,6 +11,7 @@ module.exports = {
             endCompliance: function(plugin, pluginKey, compliance) {
             },
 
+            writeCollection: function () {},
             writeResult: function (result, plugin, pluginKey) {
                 if(!this.outputCollector[plugin.title]) {
                     this.outputCollector[plugin.title] = []
