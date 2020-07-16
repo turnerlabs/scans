@@ -233,6 +233,12 @@ var calls = {
             property: 'Tags',
             paginate: 'NextToken',
         },
+        getEbsEncryptionByDefault: {
+            property: 'EbsEncryptionByDefault'
+        },
+        getEbsDefaultKmsKeyId: {
+            property: 'KmsKeyId'
+        },
     },
     ECR: {
         describeRepositories: {
