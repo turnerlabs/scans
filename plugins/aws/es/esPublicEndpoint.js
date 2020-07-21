@@ -18,7 +18,7 @@ module.exports = {
         },
     },
 
-    run: function (cache, settings, callback) {
+    run: function(cache, settings, callback) {
         var results = [];
         var source = {};
         var regions = helpers.regions(settings);
@@ -26,7 +26,7 @@ module.exports = {
 
         config.allow_es_public_endpoint_if_ip_condition_policy = (config.allow_es_public_endpoint_if_ip_condition_policy === 'true' || config.allow_es_public_endpoint_if_ip_condition_policy === true);
 
-        async.each(regions.es, function (region, rcb) {
+        async.each(regions.es, function(region, rcb) {
             var listDomainNames = helpers.addSource(cache, source,
                 ['es', 'listDomainNames', region]);
 
@@ -98,7 +98,7 @@ module.exports = {
             });
 
             rcb();
-        }, function () {
+        }, function() {
             callback(null, results, source);
         });
     }
