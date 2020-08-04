@@ -92,9 +92,10 @@ module.exports = {
                                 if (statement.Principal) {
                                     if (noReadPermissions(statement)) continue;
 
-                                    var starPrincipal = false;
-                                    if (typeof statement.Principal === 'string' && statement.Principal === '*') {
-                                        starPrincipal = true;
+                                    if (typeof statement.Principal === 'string') {
+                                        if (statement.Principal === '*') {
+                                            starPrincipal = true;
+                                        }
                                     } else if (typeof statement.Principal === 'object') {
                                         if (statement.Principal.Service && statement.Principal.Service === '*') {
                                             starPrincipal = true;
