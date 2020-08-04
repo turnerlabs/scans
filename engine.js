@@ -179,11 +179,11 @@ var engine = function(AWSConfig, AzureConfig, GitHubConfig, OracleConfig, Google
                             }
 
                             // Write out the result (to console or elsewhere)
-                            outputHandler.writeResult(results[r], plugin, key)
+                            outputHandler.writeResult(results[r], plugin, key);
 
                             // Add this to our tracking fo the worst status to calculate
                             // the exit code
-                            maximumStatus = Math.max(maximumStatus, results[r].status)
+                            maximumStatus = Math.max(maximumStatus, results[r].status);
                         }
                         outputHandler.endCompliance(plugin, key, compliance);
                         setTimeout(function() { pluginDone(err, maximumStatus); }, 0);
@@ -213,7 +213,7 @@ var engine = function(AWSConfig, AzureConfig, GitHubConfig, OracleConfig, Google
         }
         console.log('Done');
         if(callback) {
-            callback(err)
+            callback(err);
         }
     });
 };
