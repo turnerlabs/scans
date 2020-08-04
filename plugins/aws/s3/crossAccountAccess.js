@@ -7,6 +7,9 @@ module.exports = {
     category: 'S3',
     description: 'S3 Bucket Policies must not allow read/write access from unpermitted AWS accounts',
     apis: ['S3:listBuckets', 'S3:getBucketPolicy', 'STS:getCallerIdentity'],
+    more_info: 'Bucket access should be restricted only to known accounts.',
+    recommended_action: 'Remove account from bucket policy or update account whitelist to include account',
+    link: 'https://docs.aws.amazon.com/AmazonS3/latest/dev/using-iam-policies.html',
     settings: {
         s3_account_whitelist: {
             name: 'S3 Policy Account Whitelist',
