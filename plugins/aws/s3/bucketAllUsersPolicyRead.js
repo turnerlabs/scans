@@ -1,4 +1,3 @@
-var async = require('async');
 var helpers = require('../../../helpers/aws/');
 var minimatch = require('minimatch');
 const { readPermissions } = require('./s3Permissions');
@@ -60,7 +59,7 @@ module.exports = {
             return callback(null, results, source);
         }
 
-        for (i in listBuckets.data) {
+        for (var i in listBuckets.data) {
             var bucket = listBuckets.data[i];
             if (!bucket.Name) continue;
 
@@ -86,16 +85,17 @@ module.exports = {
                         var policyMessage = [];
                         var policyResult = 0;
 
-                        for (s in policyJson.Statement) {
+                        for (var s in policyJson.Statement) {
                             var statement = policyJson.Statement[s];
 
                             if (statement.Effect && statement.Effect === 'Allow') {
                                 if (statement.Principal) {
                                     if (noReadPermissions(statement)) continue;
 
-                                    var starPrincipal = false;
-                                    if (typeof statement.Principal === 'string' && statement.Principal === '*') {
-                                        starPrincipal = true;
+                                    if (typeof statement.Principal === 'string') {
+                                        if (statement.Principal === '*') {
+                                            starPrincipal = true;
+                                        }
                                     } else if (typeof statement.Principal === 'object') {
                                         if (statement.Principal.Service && statement.Principal.Service === '*') {
                                             starPrincipal = true;
