@@ -10,27 +10,35 @@ module.exports = {
     more_info: 'Policies attached to IAM roles should be scoped to least-privileged access and avoid the use of wildcards.',
     link: 'https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles.html',
     recommended_action: 'Ensure that all IAM roles are scoped to specific services and API calls.',
-    apis: ['IAM:listRoles', 'IAM:listRolePolicies', 'IAM:listAttachedRolePolicies',
-        'IAM:getPolicy', 'IAM:getRolePolicy'],
+    apis: ['IAM:listRoles', 'IAM:listRolePolicies', 'IAM:listAttachedRolePolicies', 'IAM:getRolePolicy'],
     settings: {
         iam_role_policies_ignore_path: {
             name: 'IAM Role Policies Ignore Path',
             description: 'Ignores roles that contain the provided exact-match path',
             regex: '^[0-9A-Za-z/._-]{3,512}$',
             default: false
-        }
+        },
+        ignore_service_specific_wildcards: {
+            name: 'Ignore Service Specific Wildcards',
+            description: 'enable this to consider only those roles which allow all actions',
+            regex: '^(true|false)$', // string true or boolean true to enable, string false or boolean false to disable
+            default: false
+        },
     },
 
     run: function(cache, settings, callback) {
         var config = {
-            iam_role_policies_ignore_path: settings.iam_role_policies_ignore_path || this.settings.iam_role_policies_ignore_path.default
+            iam_role_policies_ignore_path: settings.iam_role_policies_ignore_path || this.settings.iam_role_policies_ignore_path.default,
+            ignore_service_specific_wildcards: settings.ignore_service_specific_wildcards || this.settings.ignore_service_specific_wildcards.default
         };
+
+        if (config.ignore_service_specific_wildcards === 'false') config.ignore_service_specific_wildcards = false;
 
         var custom = helpers.isCustom(settings, this.settings);
 
         var results = [];
         var source = {};
-        
+
         var region = helpers.defaultRegion(settings);
 
         var listRoles = helpers.addSource(cache, source,
@@ -83,7 +91,7 @@ module.exports = {
                 return cb();
             }
 
-            var roleFailures = [];
+            let roleFailures = [];
 
             // See if role has admin managed policy
             if (listAttachedRolePolicies &&
@@ -107,12 +115,10 @@ module.exports = {
 
                 for (var p in listRolePolicies.data.PolicyNames) {
                     var policyName = listRolePolicies.data.PolicyNames[p];
-
                     if (getRolePolicy &&
-                        getRolePolicy[policyName] && 
+                        getRolePolicy[policyName] &&
                         getRolePolicy[policyName].data &&
                         getRolePolicy[policyName].data.PolicyDocument) {
-
                         var statements = helpers.normalizePolicyDocument(
                             getRolePolicy[policyName].data.PolicyDocument);
                         if (!statements) break;
@@ -123,25 +129,26 @@ module.exports = {
 
                             if (statement.Effect === 'Allow' &&
                                 !statement.Condition) {
-                                var failMsg;
-                                if (statement.Action.indexOf('*') > -1 &&
+                                let failMsg = false;
+                                if (statement.Action.includes('*') || statement.Action.includes('*:*') &&
                                     statement.Resource &&
-                                    statement.Resource.indexOf('*') > -1) {
+                                    statement.Resource.includes('*')) {
                                     failMsg = 'Role inline policy allows all actions on all resources';
-                                } else if (statement.Action.indexOf('*') > -1) {
+                                } else if (statement.Action.includes('*') || statement.Action.includes('*:*')) {
                                     failMsg = 'Role inline policy allows all actions on selected resources';
-                                } else if (statement.Action && statement.Action.length) {
+                                } else if (statement.Action && statement.Action.length && !config.ignore_service_specific_wildcards) {
                                     // Check each action for wildcards
-                                    var wildcards = [];
-                                    for (a in statement.Action) {
-                                        if (statement.Action[a].endsWith(':*')) {
-                                            wildcards.push(statement.Action[a]);
+                                    let wildcards = [];
+                                    for (var i in statement.Action) {
+                                        if (statement.Action[i].endsWith(':*')) {
+                                            wildcards.push(statement.Action[i]);
                                         }
                                     }
-                                    if (wildcards.length) failMsg = 'Role inline policy allows wildcard actions: ' + wildcards.join(', ');
+                                    if (wildcards.length) {
+                                        failMsg = 'Role inline policy allows wildcard actions: '.concat(wildcards.join(', '));
+                                    }
                                 }
-
-                                if (failMsg && roleFailures.indexOf(failMsg) === -1) roleFailures.push(failMsg);
+                                if (failMsg) roleFailures.push(failMsg);
                             }
                         }
                     }
