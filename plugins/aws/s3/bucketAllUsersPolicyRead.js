@@ -91,7 +91,7 @@ module.exports = {
                             if (statement.Effect && statement.Effect === 'Allow') {
                                 if (statement.Principal) {
                                     if (noReadPermissions(statement)) continue;
-
+                                    var starPrincipal = false;
                                     if (typeof statement.Principal === 'string') {
                                         if (statement.Principal === '*') {
                                             starPrincipal = true;
