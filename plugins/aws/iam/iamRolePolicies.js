@@ -3,6 +3,17 @@ var helpers = require('../../../helpers/aws');
 
 var managedAdminPolicy = 'arn:aws:iam::aws:policy/AdministratorAccess';
 
+function hasFederatedUserRole(policyDocument) {
+    // true iff every statement refers to federated user access
+    let statement;
+    for (statement of policyDocument.Statement) {
+        if (statement.Action !== 'sts:AssumeRoleWithSAML' && statement.Action !== 'sts:AssumeRoleWithWebIdentity'){
+            return false;
+        }
+    }
+    return true;
+}
+
 module.exports = {
     title: 'IAM Role Policies',
     category: 'IAM',
@@ -24,15 +35,23 @@ module.exports = {
             regex: '^(true|false)$', // string true or boolean true to enable, string false or boolean false to disable
             default: false
         },
+        ignore_identity_federation_roles: {
+            name: 'Ignore Identity Federation Roles',
+            description: 'enable this to ignore idp/saml trust roles',
+            regex: '^(true|false)$', // string true or boolean true to enable, string false or boolean false to disable
+            default: false
+        },
     },
 
     run: function(cache, settings, callback) {
         var config = {
             iam_role_policies_ignore_path: settings.iam_role_policies_ignore_path || this.settings.iam_role_policies_ignore_path.default,
-            ignore_service_specific_wildcards: settings.ignore_service_specific_wildcards || this.settings.ignore_service_specific_wildcards.default
+            ignore_service_specific_wildcards: settings.ignore_service_specific_wildcards || this.settings.ignore_service_specific_wildcards.default,
+            ignore_identity_federation_roles: settings.ignore_identity_federation_roles || this.settings.ignore_identity_federation_roles
         };
 
         if (config.ignore_service_specific_wildcards === 'false') config.ignore_service_specific_wildcards = false;
+        if (config.ignore_identity_federation_roles === 'false') config.ignore_identity_federation_roles = false;
 
         var custom = helpers.isCustom(settings, this.settings);
 
@@ -59,7 +78,13 @@ module.exports = {
 
         async.each(listRoles.data, function(role, cb){
             if (!role.RoleName) return cb();
-
+            if (hasFederatedUserRole(JSON.parse(decodeURIComponent(role.AssumeRolePolicyDocument))) && config.ignore_identity_federation_roles) {
+                helpers.addResult(results, 0,
+                    'Role is federated user role',
+                    'global', role.Arn, custom
+                );
+                return cb();
+            }
             // Skip roles with user-defined paths
             if (config.iam_role_policies_ignore_path &&
                 config.iam_role_policies_ignore_path.length &&
