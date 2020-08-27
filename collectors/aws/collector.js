@@ -402,6 +402,9 @@ var calls = {
         describeDBSnapshots: {
             property: 'DBSnapshots',
             paginate: 'Marker'
+        },
+        describeDBParameterGroups:{
+            property: 'DBParameterGroups',
         }
     },
     Redshift: {
@@ -843,6 +846,13 @@ var postcalls = [
                 reliesOnCall: 'listFunctions',
                 filterKey: 'Resource',
                 filterValue: 'FunctionArn'
+            }
+        },
+        RDS: {
+            describeDBParameters:{
+                reliesOnService: 'rds',
+                reliesOnCall: 'describeDBParameterGroups',
+                override: true
             }
         },
         SageMaker: {
