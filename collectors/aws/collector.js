@@ -66,6 +66,12 @@ var calls = {
             }
         }
     },
+    CloudFormation: {
+        describeStacks: {
+            property: 'Stacks',
+            paginate: 'NextToken'
+        }
+    },
     CloudFront: {
         // TODO: Pagination is using an older format
         listDistributions: {
@@ -236,6 +242,10 @@ var calls = {
                 ]
             }
         },
+        describeVpcEndpointServices: {
+            property: 'ServiceDetails',
+            paginate: 'NextToken'
+        },
         describeRouteTables: {
             property: 'RouteTables',
             paginate: 'NextToken'
@@ -403,8 +413,9 @@ var calls = {
             property: 'DBSnapshots',
             paginate: 'Marker'
         },
-        describeDBParameterGroups:{
+        describeDBParameterGroups: {
             property: 'DBParameterGroups',
+            paginate: 'Marker'
         }
     },
     Redshift: {
@@ -849,10 +860,11 @@ var postcalls = [
             }
         },
         RDS: {
-            describeDBParameters:{
+            describeDBParameters: {
                 reliesOnService: 'rds',
                 reliesOnCall: 'describeDBParameterGroups',
-                override: true
+                filterKey: 'DBParameterGroupName',
+                filterValue: 'DBParameterGroupName'
             }
         },
         SageMaker: {
@@ -947,6 +959,12 @@ var postcalls = [
                 reliesOnService: 'iam',
                 reliesOnCall: 'listRoles',
                 override: true
+            },
+            getRole: {
+                reliesOnService: 'iam',
+                reliesOnCall: 'listRoles',
+                filterKey: 'RoleName',
+                filterValue: 'RoleName'
             }
         }
     }
