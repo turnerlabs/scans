@@ -17,6 +17,9 @@ module.exports = {
             default: '^$',
         },
     },
+    compliance: {
+        cis1: '2.3 Ensure the S3 bucket used to store CloudTrail logs is not publicly accessible'
+    },
 
     run: function(cache, settings, callback) {
         var results = [];
@@ -25,7 +28,7 @@ module.exports = {
 
         var bucketRegex = RegExp(this.settings.cloudtrail_bucket_regex.default);
         try {
-            var bucketRegex = RegExp(settings.cloudtrail_bucket_regex || this.settings.cloudtrail_bucket_regex.default);
+            bucketRegex = RegExp(settings.cloudtrail_bucket_regex || this.settings.cloudtrail_bucket_regex.default);
         } catch (err) {
             helpers.addResult(results, 3, err.message, 'global', this.settings.cloudtrail_bucket_regex.name);
         }
