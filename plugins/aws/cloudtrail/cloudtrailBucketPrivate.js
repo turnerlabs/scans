@@ -45,7 +45,7 @@ module.exports = {
 
     run: function(cache, settings, callback) {
         var config = {
-          ignore_bucket_not_in_account: settings.ignore_bucket_not_in_account || this.settings.ignore_bucket_not_in_account.default
+            ignore_bucket_not_in_account: settings.ignore_bucket_not_in_account || this.settings.ignore_bucket_not_in_account.default
         };
         if (config.ignore_bucket_not_in_account === 'false') config.ignore_bucket_not_in_account = false;
         var results = [];
