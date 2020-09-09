@@ -55,6 +55,25 @@ deploy: package
 	    ScheduledRoleName=${SCHEDULED_ROLE_NAME} \
 	    ScheduledExternalId=${SCHEDULED_EXTERNAL_ID}
 
+promote:
+	aws cloudformation deploy \
+	  --template-file ./template.packaged.yaml \
+	  --capabilities CAPABILITY_IAM \
+	  --no-fail-on-empty-changeset \
+	  --stack-name ${STACK_NAME} \
+	  --parameter-overrides \
+	    DefaultRoleName=${DEFAULT_ROLE_NAME} \
+	    SecretsManagerPrefix=${SECRETS_MANAGER_PREFIX} \
+	    BucketName=${BUCKET_NAME} \
+	    BucketPrefix=${BUCKET_PREFIX} \
+	    CreateBucket=${CREATE_BUCKET} \
+	    SNSTopic=${SNS_TOPIC} \
+	    Schedule=${SCHEDULE} \
+	    ScheduledAccountId=${SCHEDULED_ACCOUNT_ID} \
+	    ScheduledRoleName=${SCHEDULED_ROLE_NAME} \
+	    ScheduledExternalId=${SCHEDULED_EXTERNAL_ID}
+
+
 sync-scorecards:
 	aws s3 sync s3://$(BUCKET_NAME)/$(BUCKET_PREFIX) Results/$(STACK_NAME)
 	open Results/$(STACK_NAME)
