@@ -59,7 +59,9 @@ module.exports = {
             var instanceList = [];
             describeInstances.data.forEach(function(reservation){
                 reservation.Instances.forEach(function(instance){
-                    instanceList.push(instance.InstanceId);
+                    if (instance.State.Name === 'running') {
+                        instanceList.push(instance.InstanceId);  //ignore instances that are not running
+                    }
                 });
             });
 
@@ -80,7 +82,6 @@ module.exports = {
             // See if every instance has SSM installed
             instanceList.forEach(function(id){
                 var arn = 'arn:aws:ec2:' + region + ':' + accountId + ':instance/' + id;
-
                 if (ssmMap[id] && ssmMap[id].PingStatus && ssmMap[id].PingStatus == 'Online') {
                     instanceListPass.push(arn);
                 } else {

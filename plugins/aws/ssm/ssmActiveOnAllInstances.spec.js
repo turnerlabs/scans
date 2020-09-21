@@ -55,7 +55,10 @@ describe('ssmActiveOnAllInstances', function () {
                 {
                     Instances: [
                         {
-                            InstanceId: 'i-abc1234'
+                            InstanceId: 'i-abc1234',
+                            State: {
+                                Name: 'running'
+                            }
                         }
                     ]
                 }
@@ -72,7 +75,10 @@ describe('ssmActiveOnAllInstances', function () {
                 {
                     Instances: [
                         {
-                            InstanceId: 'i-abc1234'
+                            InstanceId: 'i-abc1234',
+                            State: {
+                                Name: 'running'
+                            }
                         }
                     ]
                 }
@@ -94,7 +100,10 @@ describe('ssmActiveOnAllInstances', function () {
                 {
                     Instances: [
                         {
-                            InstanceId: 'i-abc1234'
+                            InstanceId: 'i-abc1234',
+                            State: {
+                                Name: 'running'
+                            }
                         }
                     ]
                 }
@@ -116,7 +125,10 @@ describe('ssmActiveOnAllInstances', function () {
                 {
                     Instances: [
                         {
-                            InstanceId: 'i-abc1234'
+                            InstanceId: 'i-abc1234',
+                            State: {
+                                Name: 'running'
+                            }
                         }
                     ]
                 }
@@ -129,6 +141,25 @@ describe('ssmActiveOnAllInstances', function () {
             ssmActiveOnAllInstances.run(cache, {}, (err, results) => {
                 expect(results.length).to.equal(1);
                 expect(results[0].status).to.equal(2);
+                done();
+            });
+        });
+        it('should PASS if there are instances that are not running, as they are ignored.', function (done) {
+            const cache = createCache([
+                {
+                    Instances: [
+                        {
+                            InstanceId: 'i-abc1234',
+                            State: {
+                                Name: 'pending'
+                            }
+                        }
+                    ]
+                }
+            ], []);
+            ssmActiveOnAllInstances.run(cache, {}, (err, results) => {
+                expect(results.length).to.equal(1);
+                expect(results[0].status).to.equal(0);
                 done();
             });
         });
