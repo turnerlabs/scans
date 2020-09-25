@@ -100,6 +100,50 @@ var calls = {
             }
         }
     },
+    Comprehend: {
+        listEntitiesDetectionJobs: {
+            property: 'EntitiesDetectionJobPropertiesList',
+            paginate: 'NextToken',
+            params: {
+                MaxResults: 100
+            }
+        },
+        listDocumentClassificationJobs: {
+            property: 'DocumentClassificationJobPropertiesList',
+            paginate: 'NextToken',
+            params: {
+                MaxResults: 100
+            }
+        },
+        listDominantLanguageDetectionJobs: {
+            property: 'DominantLanguageDetectionJobPropertiesList',
+            paginate: 'NextToken',
+            params: {
+                MaxResults: 100
+            }
+        },
+        listKeyPhrasesDetectionJobs: {
+            property: 'KeyPhrasesDetectionJobPropertiesList',
+            paginate: 'NextToken',
+            params: {
+                MaxResults: 100
+            }
+        },
+        listSentimentDetectionJobs: {
+            property: 'SentimentDetectionJobPropertiesList',
+            paginate: 'NextToken',
+            params: {
+                MaxResults: 100
+            }
+        },
+        listTopicsDetectionJobs: {
+            property: 'TopicsDetectionJobPropertiesList',
+            paginate: 'NextToken',
+            params: {
+                MaxResults: 100
+            }
+        }
+    },
     ConfigService: {
         describeConfigurationRecorders: {
             property: 'ConfigurationRecorders'
@@ -131,6 +175,12 @@ var calls = {
             property: 'TableNames',
             paginate: 'LastEvaluatedTableName',
             paginateReqProp: 'ExclusiveStartTableName'
+        }
+    },
+    DAX: {
+        describeClusters: {
+            property: 'Clusters',
+            paginate: 'NextToken'
         }
     },
     EC2: {
@@ -283,6 +333,12 @@ var calls = {
             paginate: 'nextToken'
         }
     },
+    ElasticBeanstalk: {
+        describeEnvironments: {
+            property: 'Environments',
+            paginate: 'NextToken'
+        }
+    },
     ElasticTranscoder: {
         // TODO: Pagination via NextPageToken and PageToken
         listPipelines: {
@@ -308,6 +364,12 @@ var calls = {
             property: 'TargetGroups',
             paginate: 'NextMarker',
             paginateReqProp: 'Marker'
+        }
+    },
+    EMR: {
+        listClusters: {
+            property: 'Clusters',
+            paginate: 'Marker'
         }
     },
     ES: {
@@ -583,6 +645,13 @@ var postcalls = [
                 filterValue: 'Name'
             }
         },
+        AutoScaling: {
+            describeNotificationConfigurations: {
+                reliesOnService: 'autoscaling',
+                reliesOnCall: 'describeAutoScalingGroups',
+                override: true
+            }
+        },
         CloudFront: {
             getDistribution: {
                 reliesOnService: 'cloudfront',
@@ -681,6 +750,13 @@ var postcalls = [
                 deleteRegion: true,
                 signatureVersion: 'v4',
                 override: true
+            },
+            getObjectLockConfiguration: {
+                reliesOnService: 's3',
+                reliesOnCall: 'listBuckets',
+                deleteRegion: true,
+                signatureVersion: 'v4',
+                override: true
             }
         },
         S3Control: {
@@ -710,6 +786,13 @@ var postcalls = [
             describeCluster: {
                 reliesOnService: 'eks',
                 reliesOnCall: 'listClusters',
+                override: true
+            }
+        },
+        ElasticBeanstalk: {
+            describeConfigurationSettings: {
+                reliesOnService: 'elasticbeanstalk',
+                reliesOnCall: 'describeEnvironments',
                 override: true
             }
         },
@@ -746,6 +829,14 @@ var postcalls = [
                 reliesOnService: 'elbv2',
                 reliesOnCall: 'describeLoadBalancers',
                 override: true
+            }
+        },
+        EMR: {
+            describeCluster: {
+                reliesOnService: 'emr',
+                reliesOnCall: 'listClusters',
+                filterKey: 'ClusterId',
+                filterValue: 'Id'
             }
         },
         IAM: {
@@ -943,6 +1034,13 @@ var postcalls = [
         },
     },
     {
+        EMR: {
+            describeSecurityConfiguration: {
+                reliesOnService: 'emr',
+                reliesOnCall: 'listClusters',
+                override: true
+            }
+        },
         IAM: {
             getUserPolicy: {
                 reliesOnService: 'iam',
