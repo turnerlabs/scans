@@ -12,6 +12,18 @@ else
 	export
 endif
 
+ifndef GIT_REPO
+	export GIT_REPO := $(shell git config --get remote.origin.url)
+endif
+
+ifndef GIT_BRANCH
+	export GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
+endif
+
+ifndef GIT_COMMIT_ID
+	export GIT_COMMIT_ID := $(shell git rev-parse --short HEAD)
+endif
+
 ifndef STACK_NAME
 $(error STACK_NAME is not set)
 endif
@@ -44,6 +56,9 @@ deploy: package
 	  --no-fail-on-empty-changeset \
 	  --stack-name ${STACK_NAME} \
 	  --parameter-overrides \
+		GitRepo=${GIT_REPO} \
+		GitBranch=${GIT_BRANCH} \
+		GitCommitId=${GIT_COMMIT_ID} \
 	    DefaultRoleName=${DEFAULT_ROLE_NAME} \
 	    SecretsManagerPrefix=${SECRETS_MANAGER_PREFIX} \
 	    BucketName=${BUCKET_NAME} \
@@ -62,6 +77,9 @@ promote:
 	  --no-fail-on-empty-changeset \
 	  --stack-name ${STACK_NAME} \
 	  --parameter-overrides \
+		GitRepo=${GIT_REPO} \
+		GitBranch=${GIT_BRANCH} \
+		GitCommitId=${GIT_COMMIT_ID} \
 	    DefaultRoleName=${DEFAULT_ROLE_NAME} \
 	    SecretsManagerPrefix=${SECRETS_MANAGER_PREFIX} \
 	    BucketName=${BUCKET_NAME} \
