@@ -236,6 +236,10 @@ var calls = {
                 ]
             }
         },
+        describeVpcEndpoints: {
+            property: 'VpcEndpoints',
+            paginate: 'NextToken'
+        },
         describeVpcEndpointServices: {
             property: 'ServiceDetails',
             paginate: 'NextToken'
@@ -919,7 +923,7 @@ var collect = function(AWSConfig, settings, callback) {
     if (settings.gather) {
         return callback(null, calls, postcalls);
     }
-    
+
     AWSConfig.maxRetries = 8;
     AWSConfig.retryDelayOptions = {base: 100};
 

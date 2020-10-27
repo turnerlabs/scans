@@ -39,6 +39,26 @@ module.exports = {
              'a legitimate business need. If PCI-restricted data is stored in S3, ' +
              'those buckets should not enable global user access.'
     },
+    settings: {
+        s3_trusted_ip_cidrs: {  // TODO
+            name: 'S3 Trusted Ip Cidrs',
+            description: 'TBD',
+            regex: '^(true|false)$',
+            default: 'false'
+        },
+        s3_public_tag: {  // TODO
+            name: 'S3 Public Tag',
+            description: 'if this is set, and the bucket has a tag with this key, include the tag key/value in the message',
+            regex: '^(true|false)$',
+            default: 'false'
+        },
+        allowed_accounts: {  // TODO
+            name: 'Allowed accounts',
+            description: 'allowed accounts for sourceArn and sourceAccount condition keys',
+            regex: '^(true|false)$',
+            default: 'false'
+        }
+    },
 
     run: function(cache, settings, callback) {
         var results = [];
