@@ -1,30 +1,5 @@
 var helpers = require('../../../helpers/aws/');
-var minimatch = require('minimatch');
-const { readPermissions } = require('./s3Permissions');
 const { evaluateBucketPolicy } = require('../../../helpers/aws/s3/bucketPolicyEvaluation');
-
-function matchedPermissions(policyActions, permissions) {
-    return permissions.filter(perm => {
-        return policyActions.find(action => minimatch(perm, action));
-    });
-}
-
-function noReadPermissions(statement) {
-    if (statement.Action) {
-        var actions = typeof statement.Action === 'string' ? [statement.Action] : statement.Action;
-        var grantedReadActions = matchedPermissions(actions, readPermissions);
-        if (!grantedReadActions.length) {
-            return true;
-        }
-    } else if (statement.NotAction) {
-        var notActions = typeof statement.NotAction === 'string' ? [statement.NotAction] : statement.NotAction;
-        var deniedReadActions = matchedPermissions(notActions, readPermissions);
-        if (deniedReadActions.length === readPermissions.length) {
-            return true;
-        }
-    }
-    return false;
-}
 
 module.exports = {
     title: 'S3 Bucket All Users Policy Read',
@@ -40,17 +15,15 @@ module.exports = {
              'those buckets should not enable global user access.'
     },
     settings: {
-        s3_trusted_ip_cidrs: {  // TODO, list of strings
+        s3_trusted_ip_cidrs: {
             name: 'S3 Trusted Ip Cidrs',
-            description: 'TBD',
-            regex: '^(true|false)$',
-            default: ['48.8.24.15/32']
+            description: 'array of strings representing valid cidr ranges for conditions involving IpAddress',
+            default: ['']
         },
-        s3_public_tags: {  // TODO
+        s3_public_tags: {
             name: 'S3 Public Tags',
             description: 'if this is set, and the bucket has this tag, include the tag key/value in the message',
-            regex: '^(true|false)$',
-            default: 'foo'
+            default: ''
         }
     },
 
@@ -122,7 +95,6 @@ module.exports = {
                         }
                     }
                 } catch(e) {
-                    console.log(e);
                     helpers.addResult(results, 3, `Error querying for bucket policy for bucket: ${bucket.Name}: Policy JSON could not be parsed.`, 'global', bucketResource);
                 }
             }
