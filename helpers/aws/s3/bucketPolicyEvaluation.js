@@ -330,5 +330,6 @@ function evaluateBucketPolicy(policy, metadata, config) {
     return results;
 }
 module.exports = {
-    evaluateBucketPolicy: evaluateBucketPolicy
+    evaluateBucketPolicy: evaluateBucketPolicy,
+    isMitigatingCondition: isMitigatingCondition
 };
