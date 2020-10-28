@@ -16,6 +16,7 @@ describe('bucketPolicyEvaluation', function () {
             let allowedConditionValuesEvaluator = (vpc) => allowedValues.includes(vpc)
             let results = bucketPolicyEvaluation.isMitigatingCondition(condition, allowedConditionOperators, allowedConditionKeys, allowedConditionValuesEvaluator);
             expect(results.pass).to.equal(true);
+            done();
         });
     });
     describe('isMitigatingCondition', function () {
@@ -32,6 +33,7 @@ describe('bucketPolicyEvaluation', function () {
           let allowedConditionValuesEvaluator = (vpc) => allowedValues.includes(vpc)
           let results = bucketPolicyEvaluation.isMitigatingCondition(condition, allowedConditionOperators, allowedConditionKeys, allowedConditionValuesEvaluator) // returns false
           expect(results.pass).to.equal(false);
+          done();
         });
     });
     describe('isMitigatingCondition', function () {
@@ -48,6 +50,7 @@ describe('bucketPolicyEvaluation', function () {
             let allowedConditionValuesEvaluator = (vpc) => allowedValues.includes(vpc)
             let results = bucketPolicyEvaluation.isMitigatingCondition(condition, allowedConditionOperators, allowedConditionKeys, allowedConditionValuesEvaluator) // returns true
             expect(results.pass).to.equal(true);
+            done();
         });
     });
     describe('isMitigatingCondition', function () {
@@ -64,6 +67,7 @@ describe('bucketPolicyEvaluation', function () {
             let allowedConditionValuesEvaluator = (vpc) => allowedValues.includes(vpc)
             let results = bucketPolicyEvaluation.isMitigatingCondition(condition, allowedConditionOperators, allowedConditionKeys, allowedConditionValuesEvaluator) // returns false
             expect(results.pass).to.equal(false);
+            done();
         });
     });
 });
