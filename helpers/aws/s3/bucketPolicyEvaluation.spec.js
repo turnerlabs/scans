@@ -15,7 +15,7 @@ describe('bucketPolicyEvaluation', function () {
             let allowedValues = ['vpc-abcdefg', 'vpc-123456']
             let allowedConditionValuesEvaluator = (vpc) => allowedValues.includes(vpc)
             let results = bucketPolicyEvaluation.isMitigatingCondition(condition, allowedConditionOperators, allowedConditionKeys, allowedConditionValuesEvaluator);
-            expect(results).to.equal(true);
+            expect(results.pass).to.equal(true);
         });
     });
     describe('isMitigatingCondition', function () {
@@ -31,7 +31,7 @@ describe('bucketPolicyEvaluation', function () {
           let allowedValues = ['vpc-abcdefg', 'vpc-123456']
           let allowedConditionValuesEvaluator = (vpc) => allowedValues.includes(vpc)
           let results = bucketPolicyEvaluation.isMitigatingCondition(condition, allowedConditionOperators, allowedConditionKeys, allowedConditionValuesEvaluator) // returns false
-          expect(results).to.equal(false);
+          expect(results.pass).to.equal(false);
         });
     });
     describe('isMitigatingCondition', function () {
@@ -47,7 +47,7 @@ describe('bucketPolicyEvaluation', function () {
             let allowedValues = ['vpc-abcdefg', 'vpc-123456']
             let allowedConditionValuesEvaluator = (vpc) => allowedValues.includes(vpc)
             let results = bucketPolicyEvaluation.isMitigatingCondition(condition, allowedConditionOperators, allowedConditionKeys, allowedConditionValuesEvaluator) // returns true
-            expect(results).to.equal(true);
+            expect(results.pass).to.equal(true);
         });
     });
     describe('isMitigatingCondition', function () {
@@ -63,7 +63,7 @@ describe('bucketPolicyEvaluation', function () {
             let allowedValues = ['vpc-abcdefg', 'vpc-123456']
             let allowedConditionValuesEvaluator = (vpc) => allowedValues.includes(vpc)
             let results = bucketPolicyEvaluation.isMitigatingCondition(condition, allowedConditionOperators, allowedConditionKeys, allowedConditionValuesEvaluator) // returns false
-            expect(results).to.equal(false);
+            expect(results.pass).to.equal(false);
         });
     });
 });
