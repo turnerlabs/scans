@@ -1,29 +1,5 @@
 var helpers = require('../../../helpers/aws/');
-var minimatch = require('minimatch');
-const { readPermissions } = require('./s3Permissions');
-
-function matchedPermissions(policyActions, permissions) {
-    return permissions.filter(perm => {
-        return policyActions.find(action => minimatch(perm, action));
-    });
-}
-
-function noReadPermissions(statement) {
-    if (statement.Action) {
-        var actions = typeof statement.Action === 'string' ? [statement.Action] : statement.Action;
-        var grantedReadActions = matchedPermissions(actions, readPermissions);
-        if (!grantedReadActions.length) {
-            return true;
-        }
-    } else if (statement.NotAction) {
-        var notActions = typeof statement.NotAction === 'string' ? [statement.NotAction] : statement.NotAction;
-        var deniedReadActions = matchedPermissions(notActions, readPermissions);
-        if (deniedReadActions.length === readPermissions.length) {
-            return true;
-        }
-    }
-    return false;
-}
+const { evaluateBucketPolicy } = require('../../../helpers/aws/s3/bucketPolicyEvaluation');
 
 module.exports = {
     title: 'S3 Bucket All Users Policy Read',
@@ -32,20 +8,40 @@ module.exports = {
     more_info: 'S3 buckets can be configured to allow the global principal to access the bucket via the bucket policy. This policy should be restricted only to known users or accounts.',
     recommended_action: 'Remove wildcard principals from the bucket policy statements.',
     link: 'https://docs.aws.amazon.com/AmazonS3/latest/dev/using-iam-policies.html',
-    apis: ['S3:listBuckets', 'S3:getBucketPolicy'],
+    apis: ['S3:listBuckets', 'S3:getBucketPolicy', 'S3:getBucketTagging', 'EC2:describeVpcEndpoints', 'EC2:describeVpcs', 'STS:getCallerIdentity'],
     compliance: {
         pci: 'PCI requires that cardholder data can only be accessed by those with ' +
              'a legitimate business need. If PCI-restricted data is stored in S3, ' +
              'those buckets should not enable global user access.'
     },
+    settings: {
+        s3_trusted_ip_cidrs: {
+            name: 'S3 Trusted Ip Cidrs',
+            description: 'array of strings representing valid cidr ranges for conditions involving IpAddress',
+            default: ['']
+        },
+        s3_public_tags: {
+            name: 'S3 Public Tags',
+            description: 'if this is set, and the bucket has this tag, include the tag key/value in the message',
+            default: ''
+        }
+    },
 
     run: function(cache, settings, callback) {
+        var config = {
+            s3_trusted_ip_cidrs: settings.s3_trusted_ip_cidrs || this.settings.s3_trusted_ip_cidrs.default,
+            s3_public_tags: settings.s3_public_tags || this.settings.s3_public_tags.default,
+            mustContainRead: true,
+            mustContainWrite: false
+        };
         var results = [];
         var source = {};
-
         var region = helpers.defaultRegion(settings);
 
         var listBuckets = helpers.addSource(cache, source, ['s3', 'listBuckets', region]);
+        var describeVpcEndpoints = helpers.addSource(cache, source, ['ec2', 'describeVpcEndpoints', region]);
+        var describeVpcs = helpers.addSource(cache, source, ['ec2', 'describeVpcs', region]);
+        var getCallerIdentity = helpers.addSource(cache, source, ['sts', 'getCallerIdentity', region]);
 
         if (!listBuckets) return callback(null, results, source);
 
@@ -66,7 +62,7 @@ module.exports = {
             var bucketResource = `arn:aws:s3:::${bucket.Name}`;
 
             var getBucketPolicy = helpers.addSource(cache, source, ['s3', 'getBucketPolicy', region, bucket.Name]);
-
+            var getBucketTagging = helpers.addSource(cache, source, ['s3', 'getBucketTagging', region, bucket.Name]);
             // Check the bucket policy
             if (getBucketPolicy && getBucketPolicy.err && getBucketPolicy.err.code && getBucketPolicy.err.code === 'NoSuchBucketPolicy') {
                 helpers.addResult(results, 0, 'No additional bucket policy found', 'global', bucketResource);
@@ -75,54 +71,27 @@ module.exports = {
             } else {
                 try {
                     var policyJson = JSON.parse(getBucketPolicy.data.Policy);
-                    // getBucketPolicy.data.Policy = policyJson;
 
                     if (!policyJson || !policyJson.Statement) {
                         helpers.addResult(results, 3, `Error querying for bucket policy for bucket: ${bucket.Name}: Policy JSON is invalid or does not contain valid statements.`, 'global', bucketResource);
                     } else if (!policyJson.Statement.length) {
                         helpers.addResult(results, 0, 'Bucket policy does not contain any statements', 'global', bucketResource);
                     } else {
-                        var policyMessage = [];
-                        var policyResult = 0;
-
-                        for (var s in policyJson.Statement) {
-                            var statement = policyJson.Statement[s];
-
-                            if (statement.Effect && statement.Effect === 'Allow') {
-                                if (statement.Principal) {
-                                    if (noReadPermissions(statement)) continue;
-                                    var starPrincipal = false;
-                                    if (typeof statement.Principal === 'string') {
-                                        if (statement.Principal === '*') {
-                                            starPrincipal = true;
-                                        }
-                                    } else if (typeof statement.Principal === 'object') {
-                                        if (statement.Principal.Service && statement.Principal.Service === '*') {
-                                            starPrincipal = true;
-                                        } else if (statement.Principal.AWS && statement.Principal.AWS === '*') {
-                                            starPrincipal = true;
-                                        } else if (statement.Principal.length && statement.Principal.indexOf('*') > -1) {
-                                            starPrincipal = true;
-                                        }
-                                    }
-
-                                    if (starPrincipal) {
-                                        if (statement.Condition) {
-                                            if (policyResult < 1) policyResult = 1;
-                                            policyMessage.push(`Principal * allowed to conditionally perform: ${statement.Action}`);
-                                        } else {
-                                            if (policyResult < 2) policyResult = 2;
-                                            policyMessage.push(`Principal * allowed to perform: ${statement.Action}`);
-                                        }
-                                    }
-                                }
-                            }
+                        var metadata = {};
+                        if (getBucketTagging.data) metadata.getBucketTagging = getBucketTagging.data;
+                        if (describeVpcEndpoints.data) metadata.describeVpcEndpoints = describeVpcEndpoints.data;
+                        if (describeVpcs.data) metadata.describeVpcs = describeVpcs.data;
+                        if (getCallerIdentity.data) metadata.getCallerIdentity = getCallerIdentity.data;
+                        const bucketResults = evaluateBucketPolicy(policyJson, metadata, config);
+                        if (bucketResults.numberFailStatements > 0) {
+                            const message = 'conditions:' + JSON.stringify(bucketResults.nonPassingConditions) +
+                                ' numAllows:' + String(bucketResults.numberAllows) + ' numDenies:' +
+                                String(bucketResults.numberDenies) + ' numberFailStatements:' +
+                                String(bucketResults.numberFailStatements) + ' tag:' + bucketResults.tag;
+                            helpers.addResult(results, 2, message, 'global', bucketResource);
                         }
-
-                        if (!policyMessage.length) {
+                        else {
                             helpers.addResult(results, 0, 'Bucket policy does not contain any insecure allow statements', 'global', bucketResource);
-                        } else {
-                            helpers.addResult(results, policyResult, policyMessage.join(' '), 'global', bucketResource);
                         }
                     }
                 } catch(e) {

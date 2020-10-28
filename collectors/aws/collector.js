@@ -292,6 +292,10 @@ var calls = {
                 ]
             }
         },
+        describeVpcEndpoints: {
+            property: 'VpcEndpoints',
+            paginate: 'NextToken'
+        },
         describeVpcEndpointServices: {
             property: 'ServiceDetails',
             paginate: 'NextToken'
