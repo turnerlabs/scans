@@ -47,9 +47,10 @@ function noWritePermissions(statement) {
 
 
 function isMitigatingCondition(statementCondition, allowedConditionOperators, allowedConditionKeys, allowedConditionValuesEvaluator) {
-    let result = {
-        pass: false,
-        conditions: []
+    let result = {  // in the case of a pass, both arrays are empty
+        failingValues: [],
+        nonMatchingConditions: [],
+        matchedConditions: []
     };
     for (let [conditionOperator, parentValue] of Object.entries(statementCondition)) {
         for (let [conditionKey, conditionKeyValue] of Object.entries(parentValue)) {
@@ -59,17 +60,22 @@ function isMitigatingCondition(statementCondition, allowedConditionOperators, al
                 conditionKey: conditionKey,
                 conditionKeyValue: conditionKeyValue
             };
-            let foundInTable = false;
+            let matchFound = false;
             if (allowedConditionOperators.includes(parsedCondition.conditionOperator) && allowedConditionKeys.includes(parsedCondition.conditionKey)) {
-                foundInTable = true;
+                matchFound = true;
             }
-            if (foundInTable && allowedConditionValuesEvaluator(parsedCondition)) {
-                result.pass = true;
-                result.conditions = [];
+            if (matchFound && allowedConditionValuesEvaluator(parsedCondition)) {
+                result.failingValues = [];
+                result.nonMatchingConditions = [];
                 return result;  // conditions are irrelevant for passing results.
             }
-            if (foundInTable) result.conditions.push(parsedCondition.conditionKeyValue);
-            else result.conditions.push(parsedCondition.conditionOperator + '.' + parsedCondition.conditionKey);
+            if (matchFound) {
+                result.failingValues.push(parsedCondition.conditionKeyValue);
+                result.matchedConditions.push(parsedCondition.conditionOperator + '.' + parsedCondition.conditionKey);
+            }
+            else {
+                result.nonMatchingConditions.push(parsedCondition.conditionOperator + '.' + parsedCondition.conditionKey);
+            }
         }
     }
     return result;
@@ -84,23 +90,127 @@ function isIrrelevantStatement(statement, config) {
 const CONDITIONTABLE = [
     {
         operators: ['StringEquals', 'StringEqualsIgnoreCase'],
-        keys: ['aws:sourcevpc']
+        keys: ['aws:sourcevpc'],
+        evaluator: (metadata, config) => {
+            return (statementCondition) => {
+                let conditionKeyValue = statementCondition.conditionKeyValue;
+                if (!metadata || !metadata.describeVpcs) {
+                    return false;
+                }
+                if (typeof conditionKeyValue === 'string') {
+                    conditionKeyValue = [conditionKeyValue];
+                }
+                let key;
+                let data;
+                for (key of conditionKeyValue){
+                    let matchFound = false;
+                    for (data of metadata.describeVpcs) {
+                        if (key === data.VpcId) {
+                            matchFound = true;
+                            break;
+                        }
+                    }
+                    if (!matchFound) return false;
+                }
+                return true;
+            };
+        }
     },
     {
         operators: ['StringEquals', 'StringEqualsIgnoreCase'],
-        keys: ['aws:sourcevpce']
+        keys: ['aws:sourcevpce'],
+        evaluator: (metadata, config) => {
+            return (statementCondition) => {
+                let conditionKeyValue = statementCondition.conditionKeyValue;
+                if (!metadata || !metadata.describeVpcEndpoints) {
+                    return false;
+                }
+                if (typeof conditionKeyValue === 'string') {
+                    conditionKeyValue = [conditionKeyValue];
+                }
+                let key;
+                let data;
+                for (key of conditionKeyValue){
+                    let matchFound = false;
+                    for (data of metadata.describeVpcEndpoints) {
+                        if (key === data.VpcEndpointId) {
+                            matchFound = true;
+                            break;
+                        }
+                    }
+                    if (!matchFound) return false;
+                }
+                return true;
+            };
+        }
     },
     {
         operators: ['IpAddress'],
-        keys: ['aws:sourceip']
+        keys: ['aws:sourceip'],
+        evaluator: (metadata, config) => {
+            return (statementCondition) => {
+                let conditionKeyValue = statementCondition.conditionKeyValue;
+                if (!config || !config.s3_trusted_ip_cidrs) {
+                    return false;
+                }
+                if (typeof conditionKeyValue === 'string') {
+                    conditionKeyValue = [conditionKeyValue];
+                }
+                let key;
+                let data;
+                for (key of conditionKeyValue){
+                    let matchFound = false;
+                    for (data of config.s3_trusted_ip_cidrs) {
+                        if (key === data) {
+                            matchFound = true;
+                            break;
+                        }
+                    }
+                    if (!matchFound) return false;
+                }
+                return true;
+            };
+        }
     },
     {
         operators: ['StringEquals', 'StringEqualsIgnoreCase', 'ArnEquals', 'ArnLike'],
-        keys: ['aws:sourcearn']
+        keys: ['aws:sourcearn'],
+        evaluator: (metadata, config) => {
+            return (statementCondition) => {
+                let conditionKeyValue = statementCondition.conditionKeyValue;
+                if (!metadata || !metadata.getCallerIdentity) {
+                    return false;
+                }
+                if (typeof conditionKeyValue === 'string') {
+                    conditionKeyValue = [conditionKeyValue];
+                }
+                let key;
+                for (key of conditionKeyValue){
+                    if (key.split(':')[4] !== metadata.getCallerIdentity) return false;
+                }
+                return true;
+            };
+        }
     },
     {
         operators: ['StringEquals', 'StringEqualsIgnoreCase'],
-        keys: ['aws:sourceaccount']
+        keys: ['aws:sourceaccount'],
+        evaluator: (metadata, config) => {
+            return (statementCondition) => {
+                let conditionKeyValue = statementCondition.conditionKeyValue;
+                if (!metadata || !metadata.getCallerIdentity) {
+                    return false;
+                }
+                if (typeof conditionKeyValue === 'string') {
+                    conditionKeyValue = [conditionKeyValue];
+                }
+                let key;
+                for (key of conditionKeyValue){
+                    if (key !== metadata.getCallerIdentity) return false;
+                }
+                return true;
+            };
+        }
     },
 ];
 
@@ -116,114 +226,41 @@ function getSpecificTag(metadata, config) {
     return '';
 }
 
-function makeAllowedConditionValuesEvaluator(metadata, config) {
-    return (statementCondition) => {
-        let conditionKeyValue = statementCondition.conditionKeyValue;
-        if (['StringEquals', 'StringEqualsIgnoreCase'].includes(statementCondition.conditionOperator) && ['aws:sourcevpc'].includes(statementCondition.conditionKey)) {
-            if (!metadata || !metadata.describeVpcs) {
-                return false;
-            }
-            if (typeof conditionKeyValue === 'string') {
-                conditionKeyValue = [conditionKeyValue];
-            }
-            let key;
-            let data;
-            for (key of conditionKeyValue){
-                let matchFound = false;
-                for (data of metadata.describeVpcs) {
-                    if (key === data.VpcId) {
-                        matchFound = true;
-                        break;
-                    }
-                }
-                if (!matchFound) return false;
-            }
-            return true;
-        }
-        else if (['StringEquals', 'StringEqualsIgnoreCase'].includes(statementCondition.conditionOperator) && ['aws:sourcevpce'].includes(statementCondition.conditionKey)) {
-            if (!metadata || !metadata.describeVpcEndpoints) {
-                return false;
-            }
-            if (typeof conditionKeyValue === 'string') {
-                conditionKeyValue = [conditionKeyValue];
-            }
-            let key;
-            let data;
-            for (key of conditionKeyValue){
-                let matchFound = false;
-                for (data of metadata.describeVpcEndpoints) {
-                    if (key === data.VpcEndpointId) {
-                        matchFound = true;
-                        break;
-                    }
-                }
-                if (!matchFound) return false;
-            }
-            return true;
-        }
-        else if (['IpAddress'].includes(statementCondition.conditionOperator) && ['aws:sourceip'].includes(statementCondition.conditionKey)) {
-            if (!config || !config.s3_trusted_ip_cidrs) {
-                return false;
-            }
-            if (typeof conditionKeyValue === 'string') {
-                conditionKeyValue = [conditionKeyValue];
-            }
-            let key;
-            let data;
-            for (key of conditionKeyValue){
-                let matchFound = false;
-                for (data of config.s3_trusted_ip_cidrs) {
-                    if (key === data) {
-                        matchFound = true;
-                        break;
-                    }
-                }
-                if (!matchFound) return false;
-            }
-            return true;
-        }
-        else if (['StringEquals', 'StringEqualsIgnoreCase', 'ArnEquals', 'ArnLike'].includes(statementCondition.conditionOperator) && ['aws:sourcearn'].includes(statementCondition.conditionKey)) {
-            if (!metadata || !metadata.getCallerIdentity) {
-                return false;
-            }
-            if (typeof conditionKeyValue === 'string') {
-                conditionKeyValue = [conditionKeyValue];
-            }
-            let key;
-            for (key of conditionKeyValue){
-                if (key.split(':')[4] !== metadata.getCallerIdentity) return false;
-            }
-            return true;
-        }
-        else if (['StringEquals', 'StringEqualsIgnoreCase'].includes(statementCondition.conditionOperator) && ['aws:sourceaccount'].includes(statementCondition.conditionKey)) {
-            if (!metadata || !metadata.getCallerIdentity) {
-                return false;
-            }
-            if (typeof conditionKeyValue === 'string') {
-                conditionKeyValue = [conditionKeyValue];
-            }
-            let key;
-            for (key of conditionKeyValue){
-                if (key !== metadata.getCallerIdentity) return false;
-            }
-            return true;
-        }
-        return false;
-    };
-}
-
 function evaluateConditions(statement, metadata, config) {
     // assumes there are conditions
     // checks to see if one of the conditions is mitigating
+    let result = {
+        pass: false,
+        conditions: [],
+    };
     let definition;
-    let allowedConditionOperators = [];
-    let allowedConditionKeys = [];
-    let evaluator = makeAllowedConditionValuesEvaluator(metadata, config);
+    let mitigatingConditionResults;
+    let failingValues = new Set();
+    let nonMatchingConditions = new Set();
+    let matchedConditions = new Set();
     for (definition of CONDITIONTABLE) {
-        allowedConditionOperators.push(...definition.operators);
-        allowedConditionKeys.push(...definition.keys);
+        let evaluator = definition.evaluator(metadata, config);
+        mitigatingConditionResults = isMitigatingCondition(statement.Condition, definition.operators, definition.keys, evaluator);
+        if (mitigatingConditionResults.failingValues.length === 0 && mitigatingConditionResults.nonMatchingConditions.length === 0) {
+            // passing case
+            result.pass = true;
+            result.conditions = [];
+            return result;
+        }
+        mitigatingConditionResults.nonMatchingConditions.forEach(item => nonMatchingConditions.add(item));
+        mitigatingConditionResults.failingValues.forEach(item => failingValues.add(item));
+        mitigatingConditionResults.matchedConditions.forEach(item => matchedConditions.add(item));
     }
-    return isMitigatingCondition(statement.Condition, allowedConditionOperators, allowedConditionKeys, evaluator);
+
+    result.conditions.push(...failingValues);
+    let condition;
+    for (condition of nonMatchingConditions) {
+        // If the condition key is one of the condition keys present in the above table the failing value should be included in the message.
+        // If the condition key is not one of the condition keys present in the above table the failing value should include the condition-operator and condition-key pair. e.g. StringEquals.aws:UserAgent
+        // if key is present in table, avoid including it in the results as being not-in-the-table as well.
+        if (!matchedConditions.has(condition)) result.conditions.push(condition);
+    }
+    return result;
 }
 
 function evaluateStatement(statement, metadata, config){
@@ -256,12 +293,8 @@ function evaluateStatement(statement, metadata, config){
             }
             if (starPrincipal && statement.Condition) {
                 let conditionResults = evaluateConditions(statement, metadata, config);
-                if (conditionResults.pass === true) {
-                    results.pass = true;
-                }
-                else {
-                    results.conditions.push(...conditionResults.conditions);
-                }
+                results.pass = conditionResults.pass;
+                if (conditionResults.conditions) results.conditions.push(...conditionResults.conditions);
             }
             else {
                 results.pass = !starPrincipal;
@@ -277,7 +310,7 @@ function evaluateStatement(statement, metadata, config){
 
 function evaluateBucketPolicy(policy, metadata, config) {
     let results = {
-        nonPassingConditions: [],  // either failing value or operator.key pair.
+        nonPassingConditions: new Set(),  // either failing value or operator.key pair.
         numberAllows: 0,
         numberDenies: 0,
         numberFailStatements: 0,
@@ -289,10 +322,11 @@ function evaluateBucketPolicy(policy, metadata, config) {
         if (statementResults.isDeny) results.numberDenies += 1;
         if (statementResults.isAllow) results.numberAllows += 1;
         if (!statementResults.pass) {
-            results.nonPassingConditions.push(...statementResults.conditions);
+            statementResults.conditions.forEach(item => results.nonPassingConditions.add(item));
             results.numberFailStatements += 1;
         }
     }
+    results.nonPassingConditions = [...results.nonPassingConditions];
     return results;
 }
 module.exports = {
