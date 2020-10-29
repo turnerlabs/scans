@@ -68,10 +68,16 @@ function isMitigatingCondition(statementCondition, allowedConditionOperators, al
             }
             let key;
             let isMitigating = true;
-            for (key of parsedCondition.conditionKeyValue) {
-                if (!allowedConditionValuesEvaluator(key)) {
-                    isMitigating = false;
-                    result.failingValues.push(key);
+            if (matchFound) {
+                for (key of parsedCondition.conditionKeyValue) {
+                    if (!allowedConditionValuesEvaluator(key)) {
+                        isMitigating = false;
+                        result.failingValues.push(JSON.stringify({
+                            conditionOperator: conditionOperator,
+                            conditionKey: conditionKey,
+                            offendingValue: key
+                        })); // stringify this because sets don't work with objects like I would expect.
+                    }
                 }
             }
             if (matchFound && isMitigating) {
@@ -81,10 +87,10 @@ function isMitigatingCondition(statementCondition, allowedConditionOperators, al
                 return result;  // conditions are irrelevant for passing results.
             }
             if (matchFound) {
-                result.matchedConditions.push(parsedCondition.conditionOperator + '.' + parsedCondition.conditionKey);
+                result.matchedConditions.push(parsedCondition.conditionOperator + '.' + String(parsedCondition.conditionKey));
             }
             else {
-                result.nonMatchingConditions.push(parsedCondition.conditionOperator + '.' + parsedCondition.conditionKey);
+                result.nonMatchingConditions.push(parsedCondition.conditionOperator + '.' + String(parsedCondition.conditionKey));
             }
         }
     }
@@ -207,7 +213,8 @@ function evaluateConditions(statement, metadata, config) {
     // checks to see if one of the conditions is mitigating
     let result = {
         pass: false,
-        conditions: [],
+        failingOperatorKeyValueCombinations: [],
+        unRecognizedOperatorKeyCombinations: []
     };
     let definition;
     let mitigatingConditionResults;
@@ -219,6 +226,8 @@ function evaluateConditions(statement, metadata, config) {
         mitigatingConditionResults = isMitigatingCondition(statement.Condition, definition.operators, definition.keys, evaluator);
         if (mitigatingConditionResults.pass === true) {
             result.pass = true;
+            result.failingOperatorKeyValueCombinations = []; // irrelevant in this case
+            result.unRecognizedOperatorKeyCombinations = []; // irrelevant in this case
             return result;
         }
         mitigatingConditionResults.nonMatchingConditions.forEach(item => nonMatchingConditions.add(item));
@@ -226,13 +235,14 @@ function evaluateConditions(statement, metadata, config) {
         mitigatingConditionResults.matchedConditions.forEach(item => matchedConditions.add(item));
     }
 
-    result.conditions.push(...failingValues);
+    result.failingOperatorKeyValueCombinations.push(...failingValues);
     let condition;
     for (condition of nonMatchingConditions) {
         // If the condition key is one of the condition keys present in the above table the failing value should be included in the message.
         // If the condition key is not one of the condition keys present in the above table the failing value should include the condition-operator and condition-key pair. e.g. StringEquals.aws:UserAgent
         // if key is present in table, avoid including it in the results as being not-in-the-table as well.
-        if (!matchedConditions.has(condition)) result.conditions.push(condition);
+        if (result.failingOperatorKeyValueCombinations.length !== 0) break;  // do not push unRecognized in this case.
+        if (!matchedConditions.has(condition)) result.unRecognizedOperatorKeyCombinations.push(condition);
     }
     return result;
 }
@@ -240,7 +250,8 @@ function evaluateConditions(statement, metadata, config) {
 function evaluateStatement(statement, metadata, config){
     let results = {
         pass: false,
-        conditions: [],
+        failingOperatorKeyValueCombinations: [],
+        unRecognizedOperatorKeyCombinations: [],
         isAllow: false,
         isDeny: false
     };
@@ -268,7 +279,8 @@ function evaluateStatement(statement, metadata, config){
             if (starPrincipal && statement.Condition) {
                 let conditionResults = evaluateConditions(statement, metadata, config);
                 results.pass = conditionResults.pass;
-                if (conditionResults.conditions) results.conditions.push(...conditionResults.conditions);
+                if (conditionResults.failingOperatorKeyValueCombinations) results.failingOperatorKeyValueCombinations.push(...conditionResults.failingOperatorKeyValueCombinations);
+                if (conditionResults.unRecognizedOperatorKeyCombinations) results.unRecognizedOperatorKeyCombinations.push(...conditionResults.unRecognizedOperatorKeyCombinations);
             }
             else {
                 results.pass = !starPrincipal;
@@ -284,7 +296,8 @@ function evaluateStatement(statement, metadata, config){
 
 function evaluateBucketPolicy(policy, metadata, config) {
     let results = {
-        nonPassingConditions: new Set(),  // either failing value or operator.key pair.
+        failingOperatorKeyValueCombinations: [],
+        unRecognizedOperatorKeyCombinations: [],
         numberAllows: 0,
         numberDenies: 0,
         numberFailStatements: 0,
@@ -296,14 +309,43 @@ function evaluateBucketPolicy(policy, metadata, config) {
         if (statementResults.isDeny) results.numberDenies += 1;
         if (statementResults.isAllow) results.numberAllows += 1;
         if (!statementResults.pass) {
-            statementResults.conditions.forEach(item => results.nonPassingConditions.add(item));
+            statementResults.failingOperatorKeyValueCombinations.forEach(item => results.failingOperatorKeyValueCombinations.push(JSON.parse(item)));
+            statementResults.unRecognizedOperatorKeyCombinations.forEach(item => results.unRecognizedOperatorKeyCombinations.push(item));
             results.numberFailStatements += 1;
         }
     }
-    results.nonPassingConditions = [...results.nonPassingConditions];
+    results.failingOperatorKeyValueCombinations = [...results.failingOperatorKeyValueCombinations];
+    results.unRecognizedOperatorKeyCombinations = [...results.unRecognizedOperatorKeyCombinations];
     return results;
 }
+
+function makeBucketPolicyResultMessage(bucketResults) {
+    let message = '';
+    if (bucketResults.failingOperatorKeyValueCombinations && bucketResults.failingOperatorKeyValueCombinations.length !== 0) {
+        message += 'The policy has statements that make the bucket public that have `';
+        let failedCombo;
+        for (failedCombo of bucketResults.failingOperatorKeyValueCombinations) {
+            message += String(failedCombo.conditionOperator) + '.' + String(failedCombo.conditionKey) + '.' + String(failedCombo.offendingValue) + ',';
+        }
+        message += '` conditions.\n';
+    }
+    if (bucketResults.unRecognizedOperatorKeyCombinations && bucketResults.unRecognizedOperatorKeyCombinations.length !== 0) {
+        message += 'The policy has statements that make the bucket public with conditions `';
+        let unRecognizedCombo;
+        for (unRecognizedCombo of bucketResults.unRecognizedOperatorKeyCombinations) {
+            message += unRecognizedCombo + ',';
+        }
+        message += '`\n';
+    }
+    if (bucketResults.tag) {
+        message += 'The bucket has public tag ' + bucketResults.tag + '\n';
+    }
+    message += 'Policy summary: ' + String(bucketResults.numberAllows) + ' allow statement(s) ' + String(bucketResults.numberDenies) + ' deny statement(s) ' + String(bucketResults.numberFailStatements) + ' failing statement(s)';
+    return message;
+}
+
 module.exports = {
     evaluateBucketPolicy: evaluateBucketPolicy,
-    isMitigatingCondition: isMitigatingCondition
+    isMitigatingCondition: isMitigatingCondition,
+    makeBucketPolicyResultMessage: makeBucketPolicyResultMessage
 };
