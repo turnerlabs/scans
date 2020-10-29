@@ -1,5 +1,5 @@
 var helpers = require('../../../helpers/aws/');
-const { evaluateBucketPolicy } = require('../../../helpers/aws/s3/bucketPolicyEvaluation');
+const { evaluateBucketPolicy, makeBucketPolicyResultMessage } = require('../../../helpers/aws/s3/bucketPolicyEvaluation');
 
 module.exports = {
     title: 'S3 Bucket All Users Policy Read',
@@ -14,7 +14,7 @@ module.exports = {
              'a legitimate business need. If PCI-restricted data is stored in S3, ' +
              'those buckets should not enable global user access.'
     },
-    settings: {
+    settings: {  // TODO add regexes
         s3_trusted_ip_cidrs: {
             name: 'S3 Trusted Ip Cidrs',
             description: 'array of strings representing valid cidr ranges for conditions involving IpAddress',
@@ -84,10 +84,7 @@ module.exports = {
                         if (getCallerIdentity.data) metadata.getCallerIdentity = getCallerIdentity.data;
                         const bucketResults = evaluateBucketPolicy(policyJson, metadata, config);
                         if (bucketResults.numberFailStatements > 0) {
-                            const message = 'conditions:' + JSON.stringify(bucketResults.nonPassingConditions) +
-                                ' numAllows:' + String(bucketResults.numberAllows) + ' numDenies:' +
-                                String(bucketResults.numberDenies) + ' numberFailStatements:' +
-                                String(bucketResults.numberFailStatements) + ' tag:' + bucketResults.tag;
+                            let message = makeBucketPolicyResultMessage(bucketResults);
                             helpers.addResult(results, 2, message, 'global', bucketResource);
                         }
                         else {
@@ -95,6 +92,7 @@ module.exports = {
                         }
                     }
                 } catch(e) {
+                    console.log(e);
                     helpers.addResult(results, 3, `Error querying for bucket policy for bucket: ${bucket.Name}: Policy JSON could not be parsed.`, 'global', bucketResource);
                 }
             }
