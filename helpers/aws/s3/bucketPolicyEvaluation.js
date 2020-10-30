@@ -322,20 +322,24 @@ function evaluateBucketPolicy(policy, metadata, config) {
 function makeBucketPolicyResultMessage(bucketResults) {
     let message = '';
     if (bucketResults.failingOperatorKeyValueCombinations && bucketResults.failingOperatorKeyValueCombinations.length !== 0) {
-        message += 'The policy has statements that make the bucket public that have `';
+        message += 'The policy has statements that make the bucket public with mitigating conditions with not allowed values: ';
         let failedCombo;
+        let failedCombos = [];
         for (failedCombo of bucketResults.failingOperatorKeyValueCombinations) {
-            message += String(failedCombo.conditionOperator) + '.' + String(failedCombo.conditionKey) + '.' + String(failedCombo.offendingValue) + ',';
+            failedCombos.push(String(failedCombo.conditionOperator) + '.' + String(failedCombo.conditionKey) + '.' + String(failedCombo.offendingValue));
         }
-        message += '` conditions.\n';
+        message += failedCombos.join(', ');
+        message += '\n';
     }
     if (bucketResults.unRecognizedOperatorKeyCombinations && bucketResults.unRecognizedOperatorKeyCombinations.length !== 0) {
-        message += 'The policy has statements that make the bucket public with conditions `';
+        message += 'The policy has statements that make the bucket public with the following non-mitigating conditions: ';
         let unRecognizedCombo;
+        let unRecognizedCombos = [];
         for (unRecognizedCombo of bucketResults.unRecognizedOperatorKeyCombinations) {
-            message += unRecognizedCombo + ',';
+            unRecognizedCombos.push(unRecognizedCombo);
         }
-        message += '`\n';
+        message += unRecognizedCombos.join(', ');
+        message += '\n';
     }
     if (bucketResults.tag) {
         message += 'The bucket has public tag ' + bucketResults.tag + '\n';
