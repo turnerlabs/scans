@@ -324,11 +324,25 @@ function makeBucketPolicyResultMessage(bucketResults) {
     if (bucketResults.failingOperatorKeyValueCombinations && bucketResults.failingOperatorKeyValueCombinations.length !== 0) {
         message += 'The policy has statements that make the bucket public with mitigating conditions with not allowed values: ';
         let failedCombo;
-        let failedCombos = [];
+        let failedCombos = {};
         for (failedCombo of bucketResults.failingOperatorKeyValueCombinations) {
-            failedCombos.push(String(failedCombo.conditionOperator) + '.' + String(failedCombo.conditionKey) + '.' + String(failedCombo.offendingValue));
+            let comboKey = String(failedCombo.conditionOperator) + '.' + String(failedCombo.conditionKey);
+            let failedValue = String(failedCombo.offendingValue);
+            if (comboKey in failedCombos) {
+                failedCombos[comboKey].push(failedValue);
+            }
+            else {
+                failedCombos[comboKey] = [failedValue]
+            }
         }
-        message += failedCombos.join(', ');
+        let aggregatedCombos = [];
+        for (const [key, value] of Object.entries(failedCombos)) {
+            let tempMessage = key;
+            tempMessage += ' allows ';
+            tempMessage += value.join(', ');
+            aggregatedCombos.push(tempMessage);
+        }
+        message += aggregatedCombos.join('; ');
         message += '\n';
     }
     if (bucketResults.unRecognizedOperatorKeyCombinations && bucketResults.unRecognizedOperatorKeyCombinations.length !== 0) {
