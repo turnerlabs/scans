@@ -50,8 +50,24 @@ module.exports = {
 
         if (!listBuckets) return callback(null, results, source);
 
-        if (listBuckets.err || !listBuckets.data) {
+        if (listBuckets.err) {
             helpers.addResult(results, 3, 'Unable to query for S3 buckets: ' + helpers.addError(listBuckets));
+            return callback(null, results, source);
+        }
+        if (!listBuckets.data.length) {
+            helpers.addResult(results, 0, 'No S3 buckets to check');
+            return callback(null, results, source);
+        }
+        if (describeVpcEndpoints.err) {
+            helpers.addResult(results, 3, 'Unable to query for vpc endpoints: ' + helpers.addError(describeVpcEndpoints));
+            return callback(null, results, source);
+        }
+        if (describeVpcs.err) {
+            helpers.addResult(results, 3, 'Unable to query for vpcs: ' + helpers.addError(describeVpcs));
+            return callback(null, results, source);
+        }
+        if (getCallerIdentity.err || !getCallerIdentity.data) {
+            helpers.addResult(results, 3, 'Unable to query for caller identity: ' + helpers.addError(getCallerIdentity));
             return callback(null, results, source);
         }
 
