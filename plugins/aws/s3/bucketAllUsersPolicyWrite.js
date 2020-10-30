@@ -15,16 +15,18 @@ module.exports = {
              'a legitimate business need. If PCI-restricted data is stored in S3, ' +
              'those buckets should not enable global user access.'
     },
-    settings: {  // TODO add regexes
+    settings: {
         s3_trusted_ip_cidrs: {
             name: 'S3 Trusted Ip Cidrs',
-            description: 'array of strings representing valid cidr ranges for conditions involving IpAddress',
-            default: ['']
+            description: 'array of strings (or comma-separated string of cidrs) representing valid cidr ranges for conditions involving IpAddress',
+            default: [''],
+            regex: /((25[0-5]|2[0-4]\d|[01]?\d\d?)\.(25[0-5]|2[0-4]\d|[01]?\d\d?)\.(25[0-5]|2[0-4]\d|[01]?\d\d?)\.(25[0-5]|2[0-4]\d|[01]?\d\d?)\/\d{1,2},?)*/
         },
         s3_public_tags: {
             name: 'S3 Public Tags',
             description: 'if this is set, and the bucket has this tag, include the tag key/value in the message',
-            default: ''
+            default: '',
+            regex: /^\w{1,128}$/  // length cannot be outside of [1,128]
         }
     },
 
@@ -35,6 +37,7 @@ module.exports = {
             mustContainRead: false,
             mustContainWrite: true
         };
+        if (typeof config.s3_trusted_ip_cidrs === 'string') config.s3_trusted_ip_cidrs = config.s3_trusted_ip_cidrs.split(',');
         var results = [];
         var source = {};
 
