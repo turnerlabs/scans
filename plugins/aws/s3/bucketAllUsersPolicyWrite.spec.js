@@ -2,6 +2,14 @@ var expect = require('chai').expect;
 var bucketAllUsersPolicyWrite = require('./bucketAllUsersPolicyWrite')
 var s3Permissions = require('./s3Permissions');
 
+const VPCE = 'vpce-11111111111111';
+const VPC = 'vpc-eeeeeeeeeeeeee'
+const MYKEY = 'myKey';
+const MYVALUE = 'myValue';
+const OWNER = '22222222222';
+const MYIPS = ['48.8.24.13/32', '48.8.24.15/32']
+const MYARN = 'arn:aws:lambda:us-east-1:22222222222:function:BizBaz-prod';
+
 const createPolicy = (effect, principal, action, resource, condition, notAction) => {
     const policy = {
         Version: '2012-10-17',
@@ -24,6 +32,58 @@ const createPolicy = (effect, principal, action, resource, condition, notAction)
 
 const createCache = (principal, action, condition, notAction) => {
     return {
+        ec2: {
+            describeVpcEndpoints: {
+                'us-east-1': {
+                    data: [
+                        {
+                            "VpcEndpointId": VPCE,
+                            "VpcEndpointType": "Gateway",
+                            "VpcId": "vpc-1111111111",
+                            "ServiceName": "com.amazonaws.us-east-1.s3",
+                            "State": "available",
+                            "PolicyDocument": "{}",
+                            "RouteTableIds": [],
+                            "SubnetIds": [],
+                            "Groups": [],
+                            "PrivateDnsEnabled": false,
+                            "RequesterManaged": false,
+                            "NetworkInterfaceIds": [],
+                            "DnsEntries": [],
+                            "CreationTimestamp": "2019-10-12T21:13:16.000Z",
+                            "Tags": [],
+                            "OwnerId": OWNER
+                        }
+                    ]
+                }
+            },
+            describeVpcs: {
+                'us-east-1': {
+                    data: [
+                        {
+                            "CidrBlock": "172.16.0.0/16",
+                            "DhcpOptionsId": "dopt-ea3t43n",
+                            "State": "available",
+                            "VpcId": VPC,
+                            "OwnerId": OWNER,
+                            "InstanceTenancy": "default",
+                            "Ipv6CidrBlockAssociationSet": [],
+                            "CidrBlockAssociationSet": [
+                              {
+                                "AssociationId": "vpc-cidr-assoc-3euaeou3au3",
+                                "CidrBlock": "172.16.0.0/16",
+                                "CidrBlockState": {
+                                  "State": "associated"
+                                }
+                              }
+                            ],
+                            "IsDefault": false,
+                            "Tags": []
+                        }
+                    ]
+                }
+            },
+        },
         s3: {
             listBuckets: {
                 'us-east-1': {
@@ -41,13 +101,93 @@ const createCache = (principal, action, condition, notAction) => {
                     },
                 },
             },
+            getBucketTagging: {
+                'us-east-1': {
+                    mybucket: {
+                        data: {
+                            TagSet: [
+                                {
+                                    Key: MYKEY,
+                                    Value: MYVALUE
+                                },
+                            ]
+                        },
+                    },
+                },
+            },
         },
+        sts: {
+            getCallerIdentity: {
+                'us-east-1': {
+                    data: OWNER
+                }
+            }
+        }
     };
 };
 
 
 const createErrorGetBucketPolicyCache = () => {
     return {
+        ec2: {
+            describeVpcEndpoints: {
+                'us-east-1': {
+                    data: [
+                        {
+                            "VpcEndpointId": VPCE,
+                            "VpcEndpointType": "Gateway",
+                            "VpcId": "vpc-1111111111",
+                            "ServiceName": "com.amazonaws.us-east-1.s3",
+                            "State": "available",
+                            "PolicyDocument": "{}",
+                            "RouteTableIds": [],
+                            "SubnetIds": [],
+                            "Groups": [],
+                            "PrivateDnsEnabled": false,
+                            "RequesterManaged": false,
+                            "NetworkInterfaceIds": [],
+                            "DnsEntries": [],
+                            "CreationTimestamp": "2019-10-12T21:13:16.000Z",
+                            "Tags": [],
+                            "OwnerId": OWNER
+                        }
+                    ]
+                }
+            },
+            describeVpcs: {
+                'us-east-1': {
+                    data: [
+                        {
+                            "CidrBlock": "172.16.0.0/16",
+                            "DhcpOptionsId": "dopt-ea3t43n",
+                            "State": "available",
+                            "VpcId": VPC,
+                            "OwnerId": OWNER,
+                            "InstanceTenancy": "default",
+                            "Ipv6CidrBlockAssociationSet": [],
+                            "CidrBlockAssociationSet": [
+                              {
+                                "AssociationId": "vpc-cidr-assoc-3euaeou3au3",
+                                "CidrBlock": "172.16.0.0/16",
+                                "CidrBlockState": {
+                                  "State": "associated"
+                                }
+                              }
+                            ],
+                            "IsDefault": false,
+                            "Tags": []
+                        }
+                    ]
+                }
+            },
+        },
+        sts: {
+            getCallerIdentity: {
+                'us-east-1': {
+                    data: OWNER
+                }
+            }
+        },
         s3: {
             listBuckets: {
                 'us-east-1': {
@@ -74,7 +214,7 @@ const createErrorListBucketsCache = () => {
         s3: {
             listBuckets: {
                 'us-east-1': {
-                    error: {
+                    err: {
                         message: 'some error',
                     },
                 },
@@ -184,11 +324,161 @@ describe('bucketAllUsersPolicyWrite', function () {
             });
         });
 
-        it('should WARN if condition is used.', function (done) {
-            const cache = createCache('*', 's3:PutObject', {some: 'condition'}, true);
+        it('should PASS if non-mitigating condition is used with a mitigating condition (SourceVpc)', function (done) {
+            const cache = createCache(
+                '*', 's3:PutObject',
+                {'StringEquals': {
+                        'aws:SourceVpc': 'vpc-oeuaaeo',
+                        'aws:SourceVpce': VPCE
+                }},
+                true
+            );
             bucketAllUsersPolicyWrite.run(cache, {}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');
-                expect(results[0].status).to.equal(1, 'bad status');
+                expect(results[0].status).to.equal(0, 'bad status');
+                done();
+            });
+        });
+
+        it('should FAIL if non-mitigating condition is used (SourceVpc)', function (done) {
+            const cache = createCache(
+                '*', 's3:PutObject',
+                {'StringEquals': {'aws:SourceVpc': 'vpc-oeuaaeo'}},
+                true
+            );
+            bucketAllUsersPolicyWrite.run(cache, {}, (err, results) => {
+                expect(results.length).to.equal(1, 'not enough results');
+                expect(results[0].status).to.equal(2, 'bad status');
+                done();
+            });
+        });
+
+        it('should PASS if mitigating condition is used (SourceVpc)', function (done) {
+            const cache = createCache(
+                '*', 's3:PutObject',
+                {'StringEquals': {'aws:SourceVpc': VPC}},
+                true
+            );
+            bucketAllUsersPolicyWrite.run(cache, {}, (err, results) => {
+                expect(results.length).to.equal(1, 'not enough results');
+                expect(results[0].status).to.equal(0, 'bad status');
+                done();
+            });
+        });
+
+        it('should FAIL if non-mitigating condition is used (SourceVpce)', function (done) {
+            const cache = createCache(
+                '*', 's3:PutObject',
+                {'StringEquals': {'aws:SourceVpce': 'vpce-oeuaaeo'}},
+                true
+            );
+            bucketAllUsersPolicyWrite.run(cache, {}, (err, results) => {
+                expect(results.length).to.equal(1, 'not enough results');
+                expect(results[0].status).to.equal(2, 'bad status');
+                done();
+            });
+        });
+
+        it('should PASS if mitigating condition is used (SourceVpce)', function (done) {
+            const cache = createCache(
+                '*', 's3:PutObject',
+                {'StringEquals': {'aws:SourceVpce': VPCE}},
+                true
+            );
+            bucketAllUsersPolicyWrite.run(cache, {}, (err, results) => {
+                expect(results.length).to.equal(1, 'not enough results');
+                expect(results[0].status).to.equal(0, 'bad status');
+                done();
+            });
+        });
+
+        it('should FAIL if non-mitigating condition is used (SourceIp)', function (done) {
+            const cache = createCache(
+                '*', 's3:PutObject',
+                {'IpAddress': {'aws:SourceIp': '0.0.0.0/0'}},
+                true
+            );
+            bucketAllUsersPolicyWrite.run(cache, {}, (err, results) => {
+                expect(results.length).to.equal(1, 'not enough results');
+                expect(results[0].status).to.equal(2, 'bad status');
+                done();
+            });
+        });
+
+        it('should PASS if mitigating condition is used (SourceIp)', function (done) {
+            const cache = createCache(
+                '*', 's3:PutObject',
+                {'IpAddress': {'aws:SourceIp': MYIPS}},
+                true
+            );
+            bucketAllUsersPolicyWrite.run(cache, {s3_trusted_ip_cidrs: MYIPS}, (err, results) => {
+                expect(results.length).to.equal(1, 'not enough results');
+                expect(results[0].status).to.equal(0, 'bad status');
+                done();
+            });
+        });
+
+        it('should FAIL if non-mitigating condition is used (SourceArn)', function (done) {
+            const cache = createCache(
+                '*', 's3:PutObject',
+                {'ArnEquals': {'aws:SourceArn': 'arn:aws:lambda:us-east-1:333333333333:function:OtherThing-prod'}},
+                true
+            );
+            bucketAllUsersPolicyWrite.run(cache, {}, (err, results) => {
+                expect(results.length).to.equal(1, 'not enough results');
+                expect(results[0].status).to.equal(2, 'bad status');
+                done();
+            });
+        });
+
+        it('should PASS if mitigating condition is used (SourceArn)', function (done) {
+            const cache = createCache(
+                '*', 's3:PutObject',
+                {'ArnEquals': {'aws:SourceArn': MYARN}},
+                true
+            );
+            bucketAllUsersPolicyWrite.run(cache, {}, (err, results) => {
+                expect(results.length).to.equal(1, 'not enough results');
+                expect(results[0].status).to.equal(0, 'bad status');
+                done();
+            });
+        });
+
+        it('should FAIL if non-mitigating condition is used (SourceAccount)', function (done) {
+            const cache = createCache(
+                '*', 's3:PutObject',
+                {'StringEquals': {'aws:SourceAccount': '999999999999'}},
+                true
+            );
+            bucketAllUsersPolicyWrite.run(cache, {}, (err, results) => {
+                expect(results.length).to.equal(1, 'not enough results');
+                expect(results[0].status).to.equal(2, 'bad status');
+                done();
+            });
+        });
+
+        it('should PASS if mitigating condition is used (SourceAccount)', function (done) {
+            const cache = createCache(
+                '*', 's3:PutObject',
+                {'StringEquals': {'aws:SourceAccount': OWNER}},
+                true
+            );
+            bucketAllUsersPolicyWrite.run(cache, {}, (err, results) => {
+                expect(results.length).to.equal(1, 'not enough results');
+                expect(results[0].status).to.equal(0, 'bad status');
+                done();
+            });
+        });
+
+        it('should FAIL if unRecognized condition is used (UserAgent)', function (done) {
+            const cache = createCache(
+                '*', 's3:PutObject',
+                {'StringEquals': {'aws:UserAgent': 'uaeo'}},
+                true
+            );
+            bucketAllUsersPolicyWrite.run(cache, {}, (err, results) => {
+                expect(results.length).to.equal(1, 'not enough results');
+                expect(results[0].status).to.equal(2, 'bad status');
                 done();
             });
         });
