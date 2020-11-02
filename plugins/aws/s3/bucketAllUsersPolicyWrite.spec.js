@@ -7,7 +7,7 @@ const VPC = 'vpc-eeeeeeeeeeeeee'
 const MYKEY = 'myKey';
 const MYVALUE = 'myValue';
 const OWNER = '22222222222';
-const MYIPS = ['48.8.24.13/32', '48.8.24.15/32']
+const MYIPS = ['48.8.24.13/32', '48.8.24.15/32', '48.9.0.0/16']
 const MYARN = 'arn:aws:lambda:us-east-1:22222222222:function:BizBaz-prod';
 
 const createPolicy = (effect, principal, action, resource, condition, notAction) => {
@@ -40,6 +40,28 @@ const createCache = (principal, action, condition, notAction) => {
                             "VpcEndpointId": VPCE,
                             "VpcEndpointType": "Gateway",
                             "VpcId": "vpc-1111111111",
+                            "ServiceName": "com.amazonaws.us-east-1.s3",
+                            "State": "available",
+                            "PolicyDocument": "{}",
+                            "RouteTableIds": [],
+                            "SubnetIds": [],
+                            "Groups": [],
+                            "PrivateDnsEnabled": false,
+                            "RequesterManaged": false,
+                            "NetworkInterfaceIds": [],
+                            "DnsEntries": [],
+                            "CreationTimestamp": "2019-10-12T21:13:16.000Z",
+                            "Tags": [],
+                            "OwnerId": OWNER
+                        }
+                    ]
+                },
+                'us-east-2': {
+                    data: [
+                        {
+                            "VpcEndpointId": 'vpce-11111111111112',
+                            "VpcEndpointType": "Gateway",
+                            "VpcId": "vpc-1111111112",
                             "ServiceName": "com.amazonaws.us-east-1.s3",
                             "State": "available",
                             "PolicyDocument": "{}",
@@ -288,6 +310,16 @@ describe('bucketAllUsersPolicyWrite', function () {
             });
         });
 
+        it('should return tagging info on failures', function (done) {
+            const cache = createCache(['*'], 's3:PutObject');
+            bucketAllUsersPolicyWrite.run(cache, {s3_public_tags: MYKEY}, (err, results) => {
+                expect(results.length).to.equal(1, 'not enough results');
+                expect(results[0].status).to.equal(2, 'bad status');
+                expect(results[0].message.includes(MYVALUE));
+                done();
+            });
+        });
+
         it('should FAIL with s3:* to the world.', function (done) {
             const cache = createCache('*', 's3:*');
             bucketAllUsersPolicyWrite.run(cache, {}, (err, results) => {
@@ -392,6 +424,19 @@ describe('bucketAllUsersPolicyWrite', function () {
             });
         });
 
+        it('should PASS if mitigating condition is used with vcpe in another region (SourceVpce)', function (done) {
+            const cache = createCache(
+                '*', 's3:PutObject',
+                {'StringEquals': {'aws:SourceVpce': 'vpce-11111111111112'}},
+                true
+            );
+            bucketAllUsersPolicyWrite.run(cache, {}, (err, results) => {
+                expect(results.length).to.equal(1, 'not enough results');
+                expect(results[0].status).to.equal(0, 'bad status');
+                done();
+            });
+        });
+
         it('should FAIL if non-mitigating condition is used (SourceIp)', function (done) {
             const cache = createCache(
                 '*', 's3:PutObject',
@@ -409,6 +454,32 @@ describe('bucketAllUsersPolicyWrite', function () {
             const cache = createCache(
                 '*', 's3:PutObject',
                 {'IpAddress': {'aws:SourceIp': MYIPS}},
+                true
+            );
+            bucketAllUsersPolicyWrite.run(cache, {s3_trusted_ip_cidrs: MYIPS}, (err, results) => {
+                expect(results.length).to.equal(1, 'not enough results');
+                expect(results[0].status).to.equal(0, 'bad status');
+                done();
+            });
+        });
+
+        it('should PASS if mitigating condition is used (SourceIp) (ip address is within trusted range)', function (done) {
+            const cache = createCache(
+                '*', 's3:PutObject',
+                {'IpAddress': {'aws:SourceIp': '48.9.25.122'}},
+                true
+            );
+            bucketAllUsersPolicyWrite.run(cache, {s3_trusted_ip_cidrs: MYIPS}, (err, results) => {
+                expect(results.length).to.equal(1, 'not enough results');
+                expect(results[0].status).to.equal(0, 'bad status');
+                done();
+            });
+        });
+
+        it('should PASS if mitigating condition is used (SourceIp) (ip range is within trusted range)', function (done) {
+            const cache = createCache(
+                '*', 's3:PutObject',
+                {'IpAddress': {'aws:SourceIp': '48.9.25.0/24'}},
                 true
             );
             bucketAllUsersPolicyWrite.run(cache, {s3_trusted_ip_cidrs: MYIPS}, (err, results) => {
