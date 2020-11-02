@@ -215,6 +215,8 @@ function evaluateStatement(statement, metadata, config){
                     results.pass = false;
                 } else if (statement.Principal.length && statement.Principal.indexOf('*') > -1) {
                     results.pass = false;
+                } else {
+                    results.pass = true;
                 }
             }
             else {
