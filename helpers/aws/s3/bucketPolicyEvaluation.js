@@ -181,10 +181,10 @@ function evaluateConditions(statement, metadata, config) {
     result.failingOperatorKeyValueCombinations.push(...failingValues);  // usage of spread operator instead of Array concat because failingValues is of type Set
     let condition;
     if (result.failingOperatorKeyValueCombinations.length === 0){
+        // unRecognized combos are only relevant if failing operator length is 0
         for (condition of nonMatchingConditions) {
             // nonMatchingConditions will contain almost every condition passed into function evaluateConditions
             // therefore, we check nonMatchingConditions against matchedConditions to get the set difference
-            if (result.failingOperatorKeyValueCombinations.length !== 0) break;  // do not push unRecognized in this case.
             if (!matchedConditions.has(condition)) result.unRecognizedOperatorKeyCombinations.push(condition);
         }
     }
