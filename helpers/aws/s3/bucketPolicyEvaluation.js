@@ -1,9 +1,5 @@
-// allowedConditionValues (valueWithinStatement)
-// right now conditionOperator isn't relevant to the allowedConditionValues function at the moment
-// the allowedConditionValues function is constructed to test for a specific operator.conditionkey pairing
-// for the AND case, if there is one valid operator-key-value case, then that is valid
 var minimatch = require('minimatch');
-const { readPermissions, writePermissions } = require('../../../plugins/aws/s3/s3Permissions');
+const IPCIDR = require('ip-cidr');
 
 function matchedPermissions(policyActions, permissions) {
     return permissions.filter(perm => {
@@ -11,38 +7,21 @@ function matchedPermissions(policyActions, permissions) {
     });
 }
 
-function noReadPermissions(statement) {
+function hasPermissions(statement, permissions) {
     if (statement.Action) {
         var actions = typeof statement.Action === 'string' ? [statement.Action] : statement.Action;
-        var grantedReadActions = matchedPermissions(actions, readPermissions);
-        if (!grantedReadActions.length) {
-            return true;
+        var grantedActions = matchedPermissions(actions, permissions);
+        if (!grantedActions.length) {
+            return false;
         }
     } else if (statement.NotAction) {
         var notActions = typeof statement.NotAction === 'string' ? [statement.NotAction] : statement.NotAction;
-        var deniedReadActions = matchedPermissions(notActions, readPermissions);
-        if (deniedReadActions.length === readPermissions.length) {
-            return true;
+        var deniedActions = matchedPermissions(notActions, permissions);
+        if (deniedActions.length === permissions.length) {
+            return false;
         }
     }
-    return false;
-}
-
-function noWritePermissions(statement) {
-    if (statement.Action) {
-        var actions = typeof statement.Action === 'string' ? [statement.Action] : statement.Action;
-        var grantedWriteActions = matchedPermissions(actions, writePermissions);
-        if (!grantedWriteActions.length) {
-            return true;
-        }
-    } else if (statement.NotAction) {
-        var notActions = typeof statement.NotAction === 'string' ? [statement.NotAction] : statement.NotAction;
-        var deniedWriteActions = matchedPermissions(notActions, writePermissions);
-        if (deniedWriteActions.length === writePermissions.length) {
-            return true;
-        }
-    }
-    return false;
+    return true;
 }
 
 
@@ -53,44 +32,28 @@ function isMitigatingCondition(statementCondition, allowedConditionOperators, al
         matchedConditions: [],
         pass: false
     };
+    if (statementCondition === null || statementCondition === undefined) return result;  // handle case in which there was no condition
     for (let [conditionOperator, parentValue] of Object.entries(statementCondition)) {
         for (let [conditionKey, conditionKeyValue] of Object.entries(parentValue)) {
             conditionKey = conditionKey.toLowerCase();
             if (typeof conditionKeyValue === 'string') conditionKeyValue = [conditionKeyValue];
-            const parsedCondition = {
-                conditionOperator: conditionOperator,
-                conditionKey: conditionKey,
-                conditionKeyValue: conditionKeyValue
-            };
-            let matchFound = false;
-            if (allowedConditionOperators.includes(parsedCondition.conditionOperator) && allowedConditionKeys.includes(parsedCondition.conditionKey)) {
-                matchFound = true;
-            }
-            let key;
-            let isMitigating = true;
+            const matchFound = allowedConditionOperators.includes(conditionOperator) && allowedConditionKeys.includes(conditionKey);
             if (matchFound) {
-                for (key of parsedCondition.conditionKeyValue) {
-                    if (!allowedConditionValuesEvaluator(key)) {
-                        isMitigating = false;
-                        result.failingValues.push(JSON.stringify({
-                            conditionOperator: conditionOperator,
-                            conditionKey: conditionKey,
-                            offendingValue: key
-                        })); // stringify this because sets don't work with objects like I would expect.
-                    }
-                }
+                result.failingValues = conditionKeyValue.filter((value) => !allowedConditionValuesEvaluator(value)).map(
+                    badValue => ({conditionOperator: conditionOperator, conditionKey: conditionKey, offendingValue: badValue})
+                );
             }
-            if (matchFound && isMitigating) {
+            if (matchFound && result.failingValues.length === 0) {
                 result.failingValues = [];
                 result.nonMatchingConditions = [];
                 result.pass = true;
                 return result;  // conditions are irrelevant for passing results.
             }
             if (matchFound) {
-                result.matchedConditions.push(parsedCondition.conditionOperator + '.' + String(parsedCondition.conditionKey));
+                result.matchedConditions.push(conditionOperator + '.' + conditionKey.toString());
             }
             else {
-                result.nonMatchingConditions.push(parsedCondition.conditionOperator + '.' + String(parsedCondition.conditionKey));
+                result.nonMatchingConditions.push(conditionOperator + '.' + conditionKey.toString());
             }
         }
     }
@@ -98,11 +61,6 @@ function isMitigatingCondition(statementCondition, allowedConditionOperators, al
     return result;
 }
 
-function isIrrelevantStatement(statement, config) {
-    if (config.mustContainRead && config.mustContainRead === true && noReadPermissions(statement)) return true;
-    if (config.mustContainWrite && config.mustContainWrite === true && noWritePermissions(statement)) return true;
-    return false;
-}
 
 const CONDITIONTABLE = [
     {
@@ -113,16 +71,7 @@ const CONDITIONTABLE = [
                 if (!metadata || !metadata.describeVpcs) {
                     return false;
                 }
-                let data;
-                let matchFound = false;
-                for (data of metadata.describeVpcs) {
-                    if (conditionKeyValue === data.VpcId) {
-                        matchFound = true;
-                        break;
-                    }
-                }
-                if (!matchFound) return false;
-                return true;
+                return metadata.describeVpcs.find(data => data.VpcId === conditionKeyValue);
             };
         }
     },
@@ -134,16 +83,7 @@ const CONDITIONTABLE = [
                 if (!metadata || !metadata.describeVpcEndpoints) {
                     return false;
                 }
-                let data;
-                let matchFound = false;
-                for (data of metadata.describeVpcEndpoints) {
-                    if (conditionKeyValue === data.VpcEndpointId) {
-                        matchFound = true;
-                        break;
-                    }
-                }
-                if (!matchFound) return false;
-                return true;
+                return metadata.describeVpcEndpoints.find(data => data.VpcEndpointId === conditionKeyValue);
             };
         }
     },
@@ -152,19 +92,35 @@ const CONDITIONTABLE = [
         keys: ['aws:sourceip'],
         evaluator: (metadata, config) => {
             return (conditionKeyValue) => {
-                if (!config || !config.s3_trusted_ip_cidrs) {
+                if (!config || !config.s3_trusted_ip_cidrs || config.s3_trusted_ip_cidrs.length === 0) {
                     return false;
                 }
-                let data;
-                let matchFound = false;
-                for (data of config.s3_trusted_ip_cidrs) {
-                    if (conditionKeyValue === data) {
-                        matchFound = true;
-                        break;
-                    }
+                let cidrToEval;
+                if (conditionKeyValue.includes('/') || conditionKeyValue.includes(':')) {
+                    // ':' is to check for ipv6 and not add a mask to it.
+                    cidrToEval = new IPCIDR(conditionKeyValue);
                 }
-                if (!matchFound) return false;
-                return true;
+                else {
+                    // if somehow the subnet mask is omitted, use /32.
+                    cidrToEval = new IPCIDR(conditionKeyValue + '/32');
+                }
+                cidrToEval = cidrToEval.toRange();  // convert cidr into range of ip addresses.
+                let trustedCidr;
+                let addressToEval;
+                let addressFailedToMatchTrustedRange = false;
+                for (trustedCidr of config.s3_trusted_ip_cidrs) {
+                    trustedCidr = new IPCIDR(trustedCidr);
+                    addressFailedToMatchTrustedRange = false;
+                    for (addressToEval of cidrToEval) {
+                        if (!trustedCidr.contains(addressToEval)) {
+                            addressFailedToMatchTrustedRange = true;
+                            break;
+                        }
+                    }
+                    if (!addressFailedToMatchTrustedRange) return true;
+                }
+                return false;
+
             };
         }
     },
@@ -196,20 +152,7 @@ const CONDITIONTABLE = [
     },
 ];
 
-function getSpecificTag(metadata, config) {
-    if (metadata.getBucketTagging && metadata.getBucketTagging.TagSet) {
-        let tag;
-        for (tag of metadata.getBucketTagging.TagSet) {
-            if (config.s3_public_tags === tag.Key) {
-                return tag.Key.concat(':', tag.Value);
-            }
-        }
-    }
-    return '';
-}
-
 function evaluateConditions(statement, metadata, config) {
-    // assumes there are conditions
     // checks to see if one of the conditions is mitigating
     let result = {
         pass: false,
@@ -231,18 +174,19 @@ function evaluateConditions(statement, metadata, config) {
             return result;
         }
         mitigatingConditionResults.nonMatchingConditions.forEach(item => nonMatchingConditions.add(item));
-        mitigatingConditionResults.failingValues.forEach(item => failingValues.add(item));
+        mitigatingConditionResults.failingValues.forEach(item => failingValues.add(JSON.stringify(item)));   // stringify this because sets don't work with objects like I would expect.
         mitigatingConditionResults.matchedConditions.forEach(item => matchedConditions.add(item));
     }
 
-    result.failingOperatorKeyValueCombinations.push(...failingValues);
+    result.failingOperatorKeyValueCombinations.push(...failingValues);  // usage of spread operator instead of Array concat because failingValues is of type Set
     let condition;
-    for (condition of nonMatchingConditions) {
-        // If the condition key is one of the condition keys present in the above table the failing value should be included in the message.
-        // If the condition key is not one of the condition keys present in the above table the failing value should include the condition-operator and condition-key pair. e.g. StringEquals.aws:UserAgent
-        // if key is present in table, avoid including it in the results as being not-in-the-table as well.
-        if (result.failingOperatorKeyValueCombinations.length !== 0) break;  // do not push unRecognized in this case.
-        if (!matchedConditions.has(condition)) result.unRecognizedOperatorKeyCombinations.push(condition);
+    if (result.failingOperatorKeyValueCombinations.length === 0){
+        // unRecognized combos are only relevant if failing operator length is 0
+        for (condition of nonMatchingConditions) {
+            // nonMatchingConditions will contain almost every condition passed into function evaluateConditions
+            // therefore, we check nonMatchingConditions against matchedConditions to get the set difference
+            if (!matchedConditions.has(condition)) result.unRecognizedOperatorKeyCombinations.push(condition);
+        }
     }
     return result;
 }
@@ -250,40 +194,33 @@ function evaluateConditions(statement, metadata, config) {
 function evaluateStatement(statement, metadata, config){
     let results = {
         pass: false,
-        failingOperatorKeyValueCombinations: [],
-        unRecognizedOperatorKeyCombinations: [],
         isAllow: false,
         isDeny: false
     };
-    if (isIrrelevantStatement(statement, config)) {
+    if (!hasPermissions(statement, config.validPermissions)) {
         results.pass = true;
         return results;
     }
     if (statement.Effect && statement.Effect === 'Allow') {
         results.isAllow = true;
         if (statement.Principal) {
-            let starPrincipal = false;
             if (typeof statement.Principal === 'string') {
                 if (statement.Principal === '*') {
-                    starPrincipal = true;
+                    results.pass = false;
                 }
             } else if (typeof statement.Principal === 'object') {
                 if (statement.Principal.Service && statement.Principal.Service === '*') {
-                    starPrincipal = true;
+                    results.pass = false;
                 } else if (statement.Principal.AWS && statement.Principal.AWS === '*') {
-                    starPrincipal = true;
+                    results.pass = false;
                 } else if (statement.Principal.length && statement.Principal.indexOf('*') > -1) {
-                    starPrincipal = true;
+                    results.pass = false;
+                } else {
+                    results.pass = true;
                 }
             }
-            if (starPrincipal && statement.Condition) {
-                let conditionResults = evaluateConditions(statement, metadata, config);
-                results.pass = conditionResults.pass;
-                if (conditionResults.failingOperatorKeyValueCombinations) results.failingOperatorKeyValueCombinations.push(...conditionResults.failingOperatorKeyValueCombinations);
-                if (conditionResults.unRecognizedOperatorKeyCombinations) results.unRecognizedOperatorKeyCombinations.push(...conditionResults.unRecognizedOperatorKeyCombinations);
-            }
             else {
-                results.pass = !starPrincipal;
+                results.pass = true;
             }
         }
     }
@@ -300,22 +237,21 @@ function evaluateBucketPolicy(policy, metadata, config) {
         unRecognizedOperatorKeyCombinations: [],
         numberAllows: 0,
         numberDenies: 0,
-        numberFailStatements: 0,
-        tag: getSpecificTag(metadata, config)
+        numberFailStatements: 0
     };
     for (let s in policy.Statement) {
         let statement = policy.Statement[s];
         const statementResults = evaluateStatement(statement, metadata, config);
+        if (!statementResults.pass) {
+            const conditionEvaluationResults = evaluateConditions(statement, metadata, config);
+            conditionEvaluationResults.failingOperatorKeyValueCombinations.forEach(item => results.failingOperatorKeyValueCombinations.push(JSON.parse(item)));
+            conditionEvaluationResults.unRecognizedOperatorKeyCombinations.forEach(item => results.unRecognizedOperatorKeyCombinations.push(item));
+            if (!conditionEvaluationResults.pass) results.numberFailStatements += 1;
+        }
         if (statementResults.isDeny) results.numberDenies += 1;
         if (statementResults.isAllow) results.numberAllows += 1;
-        if (!statementResults.pass) {
-            statementResults.failingOperatorKeyValueCombinations.forEach(item => results.failingOperatorKeyValueCombinations.push(JSON.parse(item)));
-            statementResults.unRecognizedOperatorKeyCombinations.forEach(item => results.unRecognizedOperatorKeyCombinations.push(item));
-            results.numberFailStatements += 1;
-        }
+
     }
-    results.failingOperatorKeyValueCombinations = [...results.failingOperatorKeyValueCombinations];
-    results.unRecognizedOperatorKeyCombinations = [...results.unRecognizedOperatorKeyCombinations];
     return results;
 }
 
@@ -326,8 +262,8 @@ function makeBucketPolicyResultMessage(bucketResults) {
         let failedCombo;
         let failedCombos = {};
         for (failedCombo of bucketResults.failingOperatorKeyValueCombinations) {
-            let comboKey = String(failedCombo.conditionOperator) + '.' + String(failedCombo.conditionKey);
-            let failedValue = String(failedCombo.offendingValue);
+            let comboKey = failedCombo.conditionOperator.toString() + '.' + failedCombo.conditionKey.toString();
+            let failedValue = failedCombo.offendingValue.toString();
             if (comboKey in failedCombos) {
                 failedCombos[comboKey].push(failedValue);
             }
@@ -355,10 +291,7 @@ function makeBucketPolicyResultMessage(bucketResults) {
         message += unRecognizedCombos.join(', ');
         message += '\n';
     }
-    if (bucketResults.tag) {
-        message += 'The bucket has public tag ' + bucketResults.tag + '\n';
-    }
-    message += 'Policy summary: ' + String(bucketResults.numberAllows) + ' allow statement(s) ' + String(bucketResults.numberDenies) + ' deny statement(s) ' + String(bucketResults.numberFailStatements) + ' failing statement(s)';
+    message += 'Policy summary: ' + bucketResults.numberAllows.toString() + ' allow statement(s) ' + bucketResults.numberDenies.toString() + ' deny statement(s) ' + bucketResults.numberFailStatements.toString() + ' failing statement(s)';
     return message;
 }
 

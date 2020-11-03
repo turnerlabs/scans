@@ -1,5 +1,17 @@
 var helpers = require('../../../helpers/aws/');
 const { evaluateBucketPolicy, makeBucketPolicyResultMessage } = require('../../../helpers/aws/s3/bucketPolicyEvaluation');
+const {readPermissions} = require('./s3Permissions');
+
+function getSpecificTag(bucketTaggingInfo, targetTag) {
+    if (bucketTaggingInfo && bucketTaggingInfo.TagSet) {
+        for (let tagInfo of bucketTaggingInfo.TagSet) {
+            if (targetTag === tagInfo.Key) {
+                return tagInfo.Key.concat(':', tagInfo.Value);
+            }
+        }
+    }
+    return '';
+}
 
 module.exports = {
     title: 'S3 Bucket All Users Policy Read',
@@ -18,7 +30,7 @@ module.exports = {
         s3_trusted_ip_cidrs: {
             name: 'S3 Trusted Ip Cidrs',
             description: 'array of strings (or comma-separated string of cidrs) representing valid cidr ranges for conditions involving IpAddress',
-            default: [''],
+            default: [],
             regex: /((25[0-5]|2[0-4]\d|[01]?\d\d?)\.(25[0-5]|2[0-4]\d|[01]?\d\d?)\.(25[0-5]|2[0-4]\d|[01]?\d\d?)\.(25[0-5]|2[0-4]\d|[01]?\d\d?)\/\d{1,2},?)*/
         },
         s3_public_tags: {
@@ -33,8 +45,7 @@ module.exports = {
         var config = {
             s3_trusted_ip_cidrs: settings.s3_trusted_ip_cidrs || this.settings.s3_trusted_ip_cidrs.default,
             s3_public_tags: settings.s3_public_tags || this.settings.s3_public_tags.default,
-            mustContainRead: true,
-            mustContainWrite: false
+            validPermissions: readPermissions,
         };
         if (typeof config.s3_trusted_ip_cidrs === 'string') config.s3_trusted_ip_cidrs = config.s3_trusted_ip_cidrs.split(',');
 
@@ -43,10 +54,7 @@ module.exports = {
         var region = helpers.defaultRegion(settings);
 
         var listBuckets = helpers.addSource(cache, source, ['s3', 'listBuckets', region]);
-        var describeVpcEndpoints = helpers.addSource(cache, source, ['ec2', 'describeVpcEndpoints', region]);
-        var describeVpcs = helpers.addSource(cache, source, ['ec2', 'describeVpcs', region]);
         var getCallerIdentity = helpers.addSource(cache, source, ['sts', 'getCallerIdentity', region]);
-
         if (!listBuckets) return callback(null, results, source);
 
         if (listBuckets.err) {
@@ -57,19 +65,32 @@ module.exports = {
             helpers.addResult(results, 0, 'No S3 buckets to check');
             return callback(null, results, source);
         }
-        if (describeVpcEndpoints.err) {
-            helpers.addResult(results, 3, 'Unable to query for vpc endpoints: ' + helpers.addError(describeVpcEndpoints));
-            return callback(null, results, source);
-        }
-        if (describeVpcs.err) {
-            helpers.addResult(results, 3, 'Unable to query for vpcs: ' + helpers.addError(describeVpcs));
-            return callback(null, results, source);
-        }
         if (getCallerIdentity.err || !getCallerIdentity.data) {
             helpers.addResult(results, 3, 'Unable to query for caller identity: ' + helpers.addError(getCallerIdentity));
             return callback(null, results, source);
         }
-
+        if (cache.ec2.describeVpcEndpoints.err) {
+            helpers.addResult(results, 3, 'Unable to query for vpc endpoints: ' + helpers.addError(cache.ec2.describeVpcEndpoints));
+            return callback(null, results, source);
+        }
+        if (cache.ec2.describeVpcs.err) {
+            helpers.addResult(results, 3, 'Unable to query for vpcs: ' + helpers.addError(cache.ec2.describeVpcs));
+            return callback(null, results, source);
+        }
+        let describeVpcEndpoints = {
+            data: []
+        };
+        let describeVpcs = {
+            data: []
+        };
+        Object.values(cache.ec2.describeVpcEndpoints).forEach(value => {
+            // collect vpc endpoints from all regions. ignore errors in a single region.
+            if (value.data) describeVpcEndpoints.data.push(...value.data);
+        });
+        Object.values(cache.ec2.describeVpcs).forEach(value => {
+            // collect vpc info from all regions. ignore errors in a single region.
+            if (value.data) describeVpcs.data.push(...value.data);
+        });
         for (var i in listBuckets.data) {
             var bucket = listBuckets.data[i];
             if (!bucket.Name) continue;
@@ -93,13 +114,16 @@ module.exports = {
                         helpers.addResult(results, 0, 'Bucket policy does not contain any statements', 'global', bucketResource);
                     } else {
                         var metadata = {};
-                        if (getBucketTagging.data) metadata.getBucketTagging = getBucketTagging.data;
                         if (describeVpcEndpoints.data) metadata.describeVpcEndpoints = describeVpcEndpoints.data;
                         if (describeVpcs.data) metadata.describeVpcs = describeVpcs.data;
                         if (getCallerIdentity.data) metadata.getCallerIdentity = getCallerIdentity.data;
                         const bucketResults = evaluateBucketPolicy(policyJson, metadata, config);
                         if (bucketResults.numberFailStatements > 0) {
                             let message = makeBucketPolicyResultMessage(bucketResults);
+                            if (config.s3_public_tags) {
+                                let tag = getSpecificTag(getBucketTagging.data, config.s3_public_tags);
+                                if (tag) message += '\nThe bucket has public tag ' + tag;
+                            }
                             helpers.addResult(results, 2, message, 'global', bucketResource);
                         }
                         else {
