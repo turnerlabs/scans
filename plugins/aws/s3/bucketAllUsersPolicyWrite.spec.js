@@ -363,7 +363,7 @@ describe('bucketAllUsersPolicyWrite', function () {
                         'aws:SourceVpc': 'vpc-oeuaaeo',
                         'aws:SourceVpce': VPCE
                 }},
-                true
+                false
             );
             bucketAllUsersPolicyWrite.run(cache, {}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');
@@ -376,7 +376,7 @@ describe('bucketAllUsersPolicyWrite', function () {
             const cache = createCache(
                 '*', 's3:PutObject',
                 {'StringEquals': {'aws:SourceVpc': 'vpc-oeuaaeo'}},
-                true
+                false
             );
             bucketAllUsersPolicyWrite.run(cache, {}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');
@@ -389,7 +389,7 @@ describe('bucketAllUsersPolicyWrite', function () {
             const cache = createCache(
                 '*', 's3:PutObject',
                 {'StringEquals': {'aws:SourceVpc': VPC}},
-                true
+                false
             );
             bucketAllUsersPolicyWrite.run(cache, {}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');
@@ -402,7 +402,7 @@ describe('bucketAllUsersPolicyWrite', function () {
             const cache = createCache(
                 '*', 's3:PutObject',
                 {'StringEquals': {'aws:SourceVpce': 'vpce-oeuaaeo'}},
-                true
+                false
             );
             bucketAllUsersPolicyWrite.run(cache, {}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');
@@ -415,7 +415,7 @@ describe('bucketAllUsersPolicyWrite', function () {
             const cache = createCache(
                 '*', 's3:PutObject',
                 {'StringEquals': {'aws:SourceVpce': VPCE}},
-                true
+                false
             );
             bucketAllUsersPolicyWrite.run(cache, {}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');
@@ -428,7 +428,7 @@ describe('bucketAllUsersPolicyWrite', function () {
             const cache = createCache(
                 '*', 's3:PutObject',
                 {'StringEquals': {'aws:SourceVpce': 'vpce-11111111111112'}},
-                true
+                false
             );
             bucketAllUsersPolicyWrite.run(cache, {}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');
@@ -441,7 +441,20 @@ describe('bucketAllUsersPolicyWrite', function () {
             const cache = createCache(
                 '*', 's3:PutObject',
                 {'IpAddress': {'aws:SourceIp': '0.0.0.0/0'}},
-                true
+                false
+            );
+            bucketAllUsersPolicyWrite.run(cache, {}, (err, results) => {
+                expect(results.length).to.equal(1, 'not enough results');
+                expect(results[0].status).to.equal(2, 'bad status');
+                done();
+            });
+        });
+
+        it('should FAIL if non-mitigating condition is used (SourceIp) (star action)', function (done) {
+            const cache = createCache(
+                '*', 's3:*',
+                {'IpAddress': {'aws:SourceIp': '0.0.0.0/0'}},
+                false
             );
             bucketAllUsersPolicyWrite.run(cache, {}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');
@@ -454,7 +467,7 @@ describe('bucketAllUsersPolicyWrite', function () {
             const cache = createCache(
                 '*', 's3:PutObject',
                 {'IpAddress': {'aws:SourceIp': MYIPS}},
-                true
+                false
             );
             bucketAllUsersPolicyWrite.run(cache, {s3_trusted_ip_cidrs: MYIPS}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');
@@ -467,7 +480,7 @@ describe('bucketAllUsersPolicyWrite', function () {
             const cache = createCache(
                 '*', 's3:PutObject',
                 {'IpAddress': {'aws:SourceIp': '48.9.25.122'}},
-                true
+                false
             );
             bucketAllUsersPolicyWrite.run(cache, {s3_trusted_ip_cidrs: MYIPS}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');
@@ -480,7 +493,19 @@ describe('bucketAllUsersPolicyWrite', function () {
             const cache = createCache(
                 '*', 's3:PutObject',
                 {'IpAddress': {'aws:SourceIp': '48.9.25.0/24'}},
-                true
+                false
+            );
+            bucketAllUsersPolicyWrite.run(cache, {s3_trusted_ip_cidrs: MYIPS}, (err, results) => {
+                expect(results.length).to.equal(1, 'not enough results');
+                expect(results[0].status).to.equal(0, 'bad status');
+                done();
+            });
+        });
+
+        it('should PASS when principal is not star, action is wildcard, and cidr is outside trusted range (SourceIp)', function (done) {
+            const cache = createCache(
+                'arn:aws:iam::111111111111:root', 's3:*',
+                {'IpAddress': {'aws:SourceIp': '48.1.25.0/16'}},
             );
             bucketAllUsersPolicyWrite.run(cache, {s3_trusted_ip_cidrs: MYIPS}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');
@@ -493,7 +518,7 @@ describe('bucketAllUsersPolicyWrite', function () {
             const cache = createCache(
                 '*', 's3:PutObject',
                 {'ArnEquals': {'aws:SourceArn': 'arn:aws:lambda:us-east-1:333333333333:function:OtherThing-prod'}},
-                true
+                false
             );
             bucketAllUsersPolicyWrite.run(cache, {}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');
@@ -506,7 +531,7 @@ describe('bucketAllUsersPolicyWrite', function () {
             const cache = createCache(
                 '*', 's3:PutObject',
                 {'ArnEquals': {'aws:SourceArn': MYARN}},
-                true
+                false
             );
             bucketAllUsersPolicyWrite.run(cache, {}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');
@@ -519,7 +544,7 @@ describe('bucketAllUsersPolicyWrite', function () {
             const cache = createCache(
                 '*', 's3:PutObject',
                 {'StringEquals': {'aws:SourceAccount': '999999999999'}},
-                true
+                false
             );
             bucketAllUsersPolicyWrite.run(cache, {}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');
@@ -532,7 +557,7 @@ describe('bucketAllUsersPolicyWrite', function () {
             const cache = createCache(
                 '*', 's3:PutObject',
                 {'StringEquals': {'aws:SourceAccount': OWNER}},
-                true
+                false
             );
             bucketAllUsersPolicyWrite.run(cache, {}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');
@@ -545,7 +570,7 @@ describe('bucketAllUsersPolicyWrite', function () {
             const cache = createCache(
                 '*', 's3:PutObject',
                 {'StringEquals': {'aws:UserAgent': 'uaeo'}},
-                true
+                false
             );
             bucketAllUsersPolicyWrite.run(cache, {}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');

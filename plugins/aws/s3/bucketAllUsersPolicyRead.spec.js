@@ -361,7 +361,7 @@ describe('bucketAllUsersPolicyRead', function () {
             const cache = createCache(
                 '*', 's3:GetObject',
                 {'StringEquals': {'aws:SourceVpc': 'vpc-oeuaaeo'}},
-                true
+                false
             );
             bucketAllUsersPolicyRead.run(cache, {}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');
@@ -377,7 +377,7 @@ describe('bucketAllUsersPolicyRead', function () {
                         'aws:SourceVpc': 'vpc-oeuaaeo',
                         'aws:SourceVpce': VPCE
                 }},
-                true
+                false
             );
             bucketAllUsersPolicyRead.run(cache, {}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');
@@ -390,7 +390,7 @@ describe('bucketAllUsersPolicyRead', function () {
             const cache = createCache(
                 '*', 's3:GetObject',
                 {'StringEquals': {'aws:SourceVpc': VPC}},
-                true
+                false
             );
             bucketAllUsersPolicyRead.run(cache, {}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');
@@ -403,7 +403,7 @@ describe('bucketAllUsersPolicyRead', function () {
             const cache = createCache(
                 '*', 's3:GetObject',
                 {'StringEquals': {'aws:SourceVpce': 'vpce-oeuaaeo'}},
-                true
+                false
             );
             bucketAllUsersPolicyRead.run(cache, {}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');
@@ -416,7 +416,7 @@ describe('bucketAllUsersPolicyRead', function () {
             const cache = createCache(
                 '*', 's3:GetObject',
                 {'StringEquals': {'aws:SourceVpce': VPCE}},
-                true
+                false
             );
             bucketAllUsersPolicyRead.run(cache, {}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');
@@ -429,7 +429,7 @@ describe('bucketAllUsersPolicyRead', function () {
             const cache = createCache(
                 '*', 's3:GetObject',
                 {'StringEquals': {'aws:SourceVpce': 'vpce-11111111111112'}},
-                true
+                false
             );
             bucketAllUsersPolicyRead.run(cache, {}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');
@@ -442,7 +442,7 @@ describe('bucketAllUsersPolicyRead', function () {
             const cache = createCache(
                 '*', 's3:GetObject',
                 {'IpAddress': {'aws:SourceIp': '0.0.0.0/0'}},
-                true
+                false
             );
             bucketAllUsersPolicyRead.run(cache, {}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');
@@ -455,7 +455,7 @@ describe('bucketAllUsersPolicyRead', function () {
             const cache = createCache(
                 '*', 's3:GetObject',
                 {'IpAddress': {'aws:SourceIp': MYIPS}},
-                true
+                false
             );
             bucketAllUsersPolicyRead.run(cache, {s3_trusted_ip_cidrs: MYIPS}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');
@@ -468,7 +468,7 @@ describe('bucketAllUsersPolicyRead', function () {
             const cache = createCache(
                 '*', 's3:GetObject',
                 {'IpAddress': {'aws:SourceIp': '48.9.25.122'}},
-                true
+                false
             );
             bucketAllUsersPolicyRead.run(cache, {s3_trusted_ip_cidrs: MYIPS}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');
@@ -481,7 +481,19 @@ describe('bucketAllUsersPolicyRead', function () {
             const cache = createCache(
                 '*', 's3:GetObject',
                 {'IpAddress': {'aws:SourceIp': '48.9.25.0/24'}},
-                true
+                false
+            );
+            bucketAllUsersPolicyRead.run(cache, {s3_trusted_ip_cidrs: MYIPS}, (err, results) => {
+                expect(results.length).to.equal(1, 'not enough results');
+                expect(results[0].status).to.equal(0, 'bad status');
+                done();
+            });
+        });
+
+        it('should PASS when principal is not star, action is wildcard, and cidr is outside trusted range (SourceIp)', function (done) {
+            const cache = createCache(
+                'arn:aws:iam::111111111111:root', 's3:*',
+                {'IpAddress': {'aws:SourceIp': '48.1.25.0/16'}},
             );
             bucketAllUsersPolicyRead.run(cache, {s3_trusted_ip_cidrs: MYIPS}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');
@@ -494,7 +506,7 @@ describe('bucketAllUsersPolicyRead', function () {
             const cache = createCache(
                 '*', 's3:GetObject',
                 {'ArnEquals': {'aws:SourceArn': 'arn:aws:lambda:us-east-1:333333333333:function:OtherThing-prod'}},
-                true
+                false
             );
             bucketAllUsersPolicyRead.run(cache, {}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');
@@ -507,7 +519,7 @@ describe('bucketAllUsersPolicyRead', function () {
             const cache = createCache(
                 '*', 's3:GetObject',
                 {'ArnEquals': {'aws:SourceArn': MYARN}},
-                true
+                false
             );
             bucketAllUsersPolicyRead.run(cache, {}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');
@@ -520,7 +532,7 @@ describe('bucketAllUsersPolicyRead', function () {
             const cache = createCache(
                 '*', 's3:GetObject',
                 {'StringEquals': {'aws:SourceAccount': '999999999999'}},
-                true
+                false
             );
             bucketAllUsersPolicyRead.run(cache, {}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');
@@ -533,7 +545,7 @@ describe('bucketAllUsersPolicyRead', function () {
             const cache = createCache(
                 '*', 's3:GetObject',
                 {'StringEquals': {'aws:SourceAccount': OWNER}},
-                true
+                false
             );
             bucketAllUsersPolicyRead.run(cache, {}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');
@@ -546,7 +558,7 @@ describe('bucketAllUsersPolicyRead', function () {
             const cache = createCache(
                 '*', 's3:GetObject',
                 {'StringEquals': {'aws:UserAgent': 'uaeo'}},
-                true
+                false
             );
             bucketAllUsersPolicyRead.run(cache, {}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');

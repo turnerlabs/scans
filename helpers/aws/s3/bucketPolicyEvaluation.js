@@ -104,23 +104,26 @@ const CONDITIONTABLE = [
                     // if somehow the subnet mask is omitted, use /32.
                     cidrToEval = new IPCIDR(conditionKeyValue + '/32');
                 }
-                cidrToEval = cidrToEval.toRange();  // convert cidr into range of ip addresses.
-                let trustedCidr;
-                let addressToEval;
-                let addressFailedToMatchTrustedRange = false;
-                for (trustedCidr of config.s3_trusted_ip_cidrs) {
-                    trustedCidr = new IPCIDR(trustedCidr);
-                    addressFailedToMatchTrustedRange = false;
-                    for (addressToEval of cidrToEval) {
-                        if (!trustedCidr.contains(addressToEval)) {
-                            addressFailedToMatchTrustedRange = true;
-                            break;
-                        }
-                    }
-                    if (!addressFailedToMatchTrustedRange) return true;
+                try {
+                    cidrToEval = cidrToEval.toRange();  // convert cidr into range of ip addresses.
+                } catch (error) {
+                    if (error.constructor === TypeError) return false;  // conditionKeyValue is not a valid cidr
+                    else throw error;
                 }
-                return false;
-
+                return config.s3_trusted_ip_cidrs.some(
+                    (trustedCidr) => {
+                        trustedCidr = new IPCIDR(trustedCidr);
+                        let addressMatchesTrustedRange = false;
+                        for (const addressToEval of cidrToEval) {
+                            if (!trustedCidr.contains(addressToEval)) {
+                                addressMatchesTrustedRange = false;
+                                break;
+                            }
+                            addressMatchesTrustedRange = true;
+                        }
+                        return addressMatchesTrustedRange;
+                    }
+                );
             };
         }
     },
@@ -205,9 +208,7 @@ function evaluateStatement(statement, metadata, config){
         results.isAllow = true;
         if (statement.Principal) {
             if (typeof statement.Principal === 'string') {
-                if (statement.Principal === '*') {
-                    results.pass = false;
-                }
+                results.pass = statement.Principal !== '*';  // pass is false if Principal is *
             } else if (typeof statement.Principal === 'object') {
                 if (statement.Principal.Service && statement.Principal.Service === '*') {
                     results.pass = false;
@@ -268,7 +269,7 @@ function makeBucketPolicyResultMessage(bucketResults) {
                 failedCombos[comboKey].push(failedValue);
             }
             else {
-                failedCombos[comboKey] = [failedValue]
+                failedCombos[comboKey] = [failedValue];
             }
         }
         let aggregatedCombos = [];
@@ -298,5 +299,6 @@ function makeBucketPolicyResultMessage(bucketResults) {
 module.exports = {
     evaluateBucketPolicy: evaluateBucketPolicy,
     isMitigatingCondition: isMitigatingCondition,
-    makeBucketPolicyResultMessage: makeBucketPolicyResultMessage
+    makeBucketPolicyResultMessage: makeBucketPolicyResultMessage,
+    CONDITIONTABLE: CONDITIONTABLE
 };
