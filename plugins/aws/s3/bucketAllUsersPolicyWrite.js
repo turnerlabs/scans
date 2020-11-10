@@ -1,5 +1,5 @@
 var helpers = require('../../../helpers/aws/');
-const { evaluateBucketPolicy, makeBucketPolicyResultMessage } = require('../../../helpers/aws/s3/bucketPolicyEvaluation');
+const { makeBucketPolicyResultMessage, evaluateConditions, evaluateStatement } = require('../../../helpers/aws/s3/bucketPolicyEvaluation');
 const {writePermissions} = require('./s3Permissions');
 
 function getSpecificTag(bucketTaggingInfo, targetTag) {
@@ -11,6 +11,37 @@ function getSpecificTag(bucketTaggingInfo, targetTag) {
         }
     }
     return '';
+}
+
+function evaluateBucketPolicy(policy, metadata, config) {
+    let results = {
+        failingOperatorKeyValueCombinations: [],
+        unRecognizedOperatorKeyCombinations: [],
+        numberAllows: 0,
+        numberDenies: 0,
+        numberFailStatements: 0,
+        unconditionalMessages: []
+    };
+    for (let s in policy.Statement) {
+        let statement = policy.Statement[s];
+        const statementResults = evaluateStatement(statement, metadata, config);
+        if (!statementResults.pass) {
+            if (!statement.Condition) {
+                results.unconditionalMessages.push(`Principal * unconditionally allowed to perform: ${statement.Action}`);
+                results.numberFailStatements += 1;
+            }
+            else {
+                const conditionEvaluationResults = evaluateConditions(statement, metadata, config);
+                conditionEvaluationResults.failingOperatorKeyValueCombinations.forEach(item => results.failingOperatorKeyValueCombinations.push(JSON.parse(item)));
+                conditionEvaluationResults.unRecognizedOperatorKeyCombinations.forEach(item => results.unRecognizedOperatorKeyCombinations.push(item));
+                if (!conditionEvaluationResults.pass) results.numberFailStatements += 1;
+            }
+        }
+        if (statementResults.isDeny) results.numberDenies += 1;
+        if (statementResults.isAllow) results.numberAllows += 1;
+
+    }
+    return results;
 }
 
 module.exports = {
@@ -114,22 +145,39 @@ module.exports = {
                         helpers.addResult(results, 0, 'Bucket policy does not contain any statements', 'global', bucketResource);
                     } else {
                         var metadata = {};
-                        if (getBucketTagging.data) metadata.getBucketTagging = getBucketTagging.data;
                         if (describeVpcEndpoints.data) metadata.describeVpcEndpoints = describeVpcEndpoints.data;
                         if (describeVpcs.data) metadata.describeVpcs = describeVpcs.data;
                         if (getCallerIdentity.data) metadata.getCallerIdentity = getCallerIdentity.data;
                         const bucketResults = evaluateBucketPolicy(policyJson, metadata, config);
+                        let message = 'policy not recognized by plugin logic';
+                        let statusCode = 3;
                         if (bucketResults.numberFailStatements > 0) {
-                            let message = makeBucketPolicyResultMessage(bucketResults);
-                            if (config.s3_public_tags) {
-                                let tag = getSpecificTag(getBucketTagging.data, config.s3_public_tags);
-                                if (tag) message += '\nThe bucket has public tag ' + tag;
+                            if (bucketResults.unconditionalMessages.length > 0) {
+                                // public open statements without condition
+                                message = bucketResults.unconditionalMessages.join(' ');
+                                message += `\n Number of denies: ${bucketResults.numberDenies.toString()}`;
+                                message += `\n Number of allows: ${bucketResults.numberAllows.toString()}`;
+                                statusCode = 2;
                             }
-                            helpers.addResult(results, 2, message, 'global', bucketResource);
+                            else if (bucketResults.failingOperatorKeyValueCombinations.length > 0) {
+                                message = makeBucketPolicyResultMessage(bucketResults);
+                                statusCode = 1;
+                            }
+                            else if (bucketResults.unRecognizedOperatorKeyCombinations.length > 0) {
+                                message = makeBucketPolicyResultMessage(bucketResults);
+                                statusCode = 1;
+                            }
+                            // NOTE else clause intentionally omitted
                         }
                         else {
-                            helpers.addResult(results, 0, 'Bucket policy does not contain any insecure allow statements', 'global', bucketResource);
+                            message = 'Bucket policy does not contain any insecure allow statements';
+                            statusCode = 0;
                         }
+                        if (config.s3_public_tags) {
+                            let tag = getSpecificTag(getBucketTagging.data, config.s3_public_tags);
+                            if (tag) message += '\nThe bucket has public tag ' + tag;
+                        }
+                        helpers.addResult(results, statusCode, message, 'global', bucketResource);
                     }
                 } catch(e) {
                     helpers.addResult(results, 3, `Error querying for bucket policy for bucket: ${bucket.Name}: Policy JSON could not be parsed.`, 'global', bucketResource);

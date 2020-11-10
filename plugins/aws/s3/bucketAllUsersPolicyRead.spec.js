@@ -357,7 +357,7 @@ describe('bucketAllUsersPolicyRead', function () {
             });
         });
 
-        it('should FAIL if non-mitigating condition is used (SourceVpc)', function (done) {
+        it('should WARN if non-mitigating condition is used (SourceVpc)', function (done) {
             const cache = createCache(
                 '*', 's3:GetObject',
                 {'StringEquals': {'aws:SourceVpc': 'vpc-oeuaaeo'}},
@@ -365,7 +365,7 @@ describe('bucketAllUsersPolicyRead', function () {
             );
             bucketAllUsersPolicyRead.run(cache, {}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');
-                expect(results[0].status).to.equal(2, 'bad status');
+                expect(results[0].status).to.equal(1, 'bad status');
                 done();
             });
         });
@@ -399,7 +399,7 @@ describe('bucketAllUsersPolicyRead', function () {
             });
         });
 
-        it('should FAIL if non-mitigating condition is used (SourceVpce)', function (done) {
+        it('should WARN if non-mitigating condition is used (SourceVpce)', function (done) {
             const cache = createCache(
                 '*', 's3:GetObject',
                 {'StringEquals': {'aws:SourceVpce': 'vpce-oeuaaeo'}},
@@ -407,7 +407,7 @@ describe('bucketAllUsersPolicyRead', function () {
             );
             bucketAllUsersPolicyRead.run(cache, {}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');
-                expect(results[0].status).to.equal(2, 'bad status');
+                expect(results[0].status).to.equal(1, 'bad status');
                 done();
             });
         });
@@ -438,7 +438,7 @@ describe('bucketAllUsersPolicyRead', function () {
             });
         });
 
-        it('should FAIL if non-mitigating condition is used (SourceIp)', function (done) {
+        it('should WARN if non-mitigating condition is used (SourceIp)', function (done) {
             const cache = createCache(
                 '*', 's3:GetObject',
                 {'IpAddress': {'aws:SourceIp': '0.0.0.0/0'}},
@@ -446,7 +446,7 @@ describe('bucketAllUsersPolicyRead', function () {
             );
             bucketAllUsersPolicyRead.run(cache, {}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');
-                expect(results[0].status).to.equal(2, 'bad status');
+                expect(results[0].status).to.equal(1, 'bad status');
                 done();
             });
         });
@@ -502,7 +502,7 @@ describe('bucketAllUsersPolicyRead', function () {
             });
         });
 
-        it('should FAIL if non-mitigating condition is used (SourceArn)', function (done) {
+        it('should WARN if non-mitigating condition is used (SourceArn)', function (done) {
             const cache = createCache(
                 '*', 's3:GetObject',
                 {'ArnEquals': {'aws:SourceArn': 'arn:aws:lambda:us-east-1:333333333333:function:OtherThing-prod'}},
@@ -510,7 +510,7 @@ describe('bucketAllUsersPolicyRead', function () {
             );
             bucketAllUsersPolicyRead.run(cache, {}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');
-                expect(results[0].status).to.equal(2, 'bad status');
+                expect(results[0].status).to.equal(1, 'bad status');
                 done();
             });
         });
@@ -528,7 +528,7 @@ describe('bucketAllUsersPolicyRead', function () {
             });
         });
 
-        it('should FAIL if non-mitigating condition is used (SourceAccount)', function (done) {
+        it('should WARN if non-mitigating condition is used (SourceAccount)', function (done) {
             const cache = createCache(
                 '*', 's3:GetObject',
                 {'StringEquals': {'aws:SourceAccount': '999999999999'}},
@@ -536,7 +536,7 @@ describe('bucketAllUsersPolicyRead', function () {
             );
             bucketAllUsersPolicyRead.run(cache, {}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');
-                expect(results[0].status).to.equal(2, 'bad status');
+                expect(results[0].status).to.equal(1, 'bad status');
                 done();
             });
         });
@@ -554,7 +554,7 @@ describe('bucketAllUsersPolicyRead', function () {
             });
         });
 
-        it('should FAIL if unRecognized condition is used (UserAgent)', function (done) {
+        it('should WARN if unRecognized condition is used (UserAgent)', function (done) {
             const cache = createCache(
                 '*', 's3:GetObject',
                 {'StringEquals': {'aws:UserAgent': 'uaeo'}},
@@ -562,7 +562,7 @@ describe('bucketAllUsersPolicyRead', function () {
             );
             bucketAllUsersPolicyRead.run(cache, {}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');
-                expect(results[0].status).to.equal(2, 'bad status');
+                expect(results[0].status).to.equal(1, 'bad status');
                 done();
             });
         });

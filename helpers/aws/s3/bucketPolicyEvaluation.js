@@ -232,30 +232,6 @@ function evaluateStatement(statement, metadata, config){
     return results;
 }
 
-function evaluateBucketPolicy(policy, metadata, config) {
-    let results = {
-        failingOperatorKeyValueCombinations: [],
-        unRecognizedOperatorKeyCombinations: [],
-        numberAllows: 0,
-        numberDenies: 0,
-        numberFailStatements: 0
-    };
-    for (let s in policy.Statement) {
-        let statement = policy.Statement[s];
-        const statementResults = evaluateStatement(statement, metadata, config);
-        if (!statementResults.pass) {
-            const conditionEvaluationResults = evaluateConditions(statement, metadata, config);
-            conditionEvaluationResults.failingOperatorKeyValueCombinations.forEach(item => results.failingOperatorKeyValueCombinations.push(JSON.parse(item)));
-            conditionEvaluationResults.unRecognizedOperatorKeyCombinations.forEach(item => results.unRecognizedOperatorKeyCombinations.push(item));
-            if (!conditionEvaluationResults.pass) results.numberFailStatements += 1;
-        }
-        if (statementResults.isDeny) results.numberDenies += 1;
-        if (statementResults.isAllow) results.numberAllows += 1;
-
-    }
-    return results;
-}
-
 function makeBucketPolicyResultMessage(bucketResults) {
     let message = '';
     if (bucketResults.failingOperatorKeyValueCombinations && bucketResults.failingOperatorKeyValueCombinations.length !== 0) {
@@ -297,8 +273,9 @@ function makeBucketPolicyResultMessage(bucketResults) {
 }
 
 module.exports = {
-    evaluateBucketPolicy: evaluateBucketPolicy,
     isMitigatingCondition: isMitigatingCondition,
     makeBucketPolicyResultMessage: makeBucketPolicyResultMessage,
-    CONDITIONTABLE: CONDITIONTABLE
+    CONDITIONTABLE: CONDITIONTABLE,
+    evaluateStatement: evaluateStatement,
+    evaluateConditions: evaluateConditions
 };

@@ -372,7 +372,7 @@ describe('bucketAllUsersPolicyWrite', function () {
             });
         });
 
-        it('should FAIL if non-mitigating condition is used (SourceVpc)', function (done) {
+        it('should WARN if non-mitigating condition is used (SourceVpc)', function (done) {
             const cache = createCache(
                 '*', 's3:PutObject',
                 {'StringEquals': {'aws:SourceVpc': 'vpc-oeuaaeo'}},
@@ -380,7 +380,7 @@ describe('bucketAllUsersPolicyWrite', function () {
             );
             bucketAllUsersPolicyWrite.run(cache, {}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');
-                expect(results[0].status).to.equal(2, 'bad status');
+                expect(results[0].status).to.equal(1, 'bad status');
                 done();
             });
         });
@@ -398,7 +398,7 @@ describe('bucketAllUsersPolicyWrite', function () {
             });
         });
 
-        it('should FAIL if non-mitigating condition is used (SourceVpce)', function (done) {
+        it('should WARN if non-mitigating condition is used (SourceVpce)', function (done) {
             const cache = createCache(
                 '*', 's3:PutObject',
                 {'StringEquals': {'aws:SourceVpce': 'vpce-oeuaaeo'}},
@@ -406,7 +406,7 @@ describe('bucketAllUsersPolicyWrite', function () {
             );
             bucketAllUsersPolicyWrite.run(cache, {}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');
-                expect(results[0].status).to.equal(2, 'bad status');
+                expect(results[0].status).to.equal(1, 'bad status');
                 done();
             });
         });
@@ -437,7 +437,7 @@ describe('bucketAllUsersPolicyWrite', function () {
             });
         });
 
-        it('should FAIL if non-mitigating condition is used (SourceIp)', function (done) {
+        it('should WARN if non-mitigating condition is used (SourceIp)', function (done) {
             const cache = createCache(
                 '*', 's3:PutObject',
                 {'IpAddress': {'aws:SourceIp': '0.0.0.0/0'}},
@@ -445,12 +445,12 @@ describe('bucketAllUsersPolicyWrite', function () {
             );
             bucketAllUsersPolicyWrite.run(cache, {}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');
-                expect(results[0].status).to.equal(2, 'bad status');
+                expect(results[0].status).to.equal(1, 'bad status');
                 done();
             });
         });
 
-        it('should FAIL if non-mitigating condition is used (SourceIp) (star action)', function (done) {
+        it('should WARN if non-mitigating condition is used (SourceIp) (star action)', function (done) {
             const cache = createCache(
                 '*', 's3:*',
                 {'IpAddress': {'aws:SourceIp': '0.0.0.0/0'}},
@@ -458,7 +458,7 @@ describe('bucketAllUsersPolicyWrite', function () {
             );
             bucketAllUsersPolicyWrite.run(cache, {}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');
-                expect(results[0].status).to.equal(2, 'bad status');
+                expect(results[0].status).to.equal(1, 'bad status');
                 done();
             });
         });
@@ -514,7 +514,7 @@ describe('bucketAllUsersPolicyWrite', function () {
             });
         });
 
-        it('should FAIL if non-mitigating condition is used (SourceArn)', function (done) {
+        it('should WARN if non-mitigating condition is used (SourceArn)', function (done) {
             const cache = createCache(
                 '*', 's3:PutObject',
                 {'ArnEquals': {'aws:SourceArn': 'arn:aws:lambda:us-east-1:333333333333:function:OtherThing-prod'}},
@@ -522,7 +522,7 @@ describe('bucketAllUsersPolicyWrite', function () {
             );
             bucketAllUsersPolicyWrite.run(cache, {}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');
-                expect(results[0].status).to.equal(2, 'bad status');
+                expect(results[0].status).to.equal(1, 'bad status');
                 done();
             });
         });
@@ -540,7 +540,7 @@ describe('bucketAllUsersPolicyWrite', function () {
             });
         });
 
-        it('should FAIL if non-mitigating condition is used (SourceAccount)', function (done) {
+        it('should WARN if non-mitigating condition is used (SourceAccount)', function (done) {
             const cache = createCache(
                 '*', 's3:PutObject',
                 {'StringEquals': {'aws:SourceAccount': '999999999999'}},
@@ -548,7 +548,7 @@ describe('bucketAllUsersPolicyWrite', function () {
             );
             bucketAllUsersPolicyWrite.run(cache, {}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');
-                expect(results[0].status).to.equal(2, 'bad status');
+                expect(results[0].status).to.equal(1, 'bad status');
                 done();
             });
         });
@@ -566,7 +566,7 @@ describe('bucketAllUsersPolicyWrite', function () {
             });
         });
 
-        it('should FAIL if unRecognized condition is used (UserAgent)', function (done) {
+        it('should WARN if unRecognized condition is used (UserAgent)', function (done) {
             const cache = createCache(
                 '*', 's3:PutObject',
                 {'StringEquals': {'aws:UserAgent': 'uaeo'}},
@@ -574,7 +574,7 @@ describe('bucketAllUsersPolicyWrite', function () {
             );
             bucketAllUsersPolicyWrite.run(cache, {}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');
-                expect(results[0].status).to.equal(2, 'bad status');
+                expect(results[0].status).to.equal(1, 'bad status');
                 done();
             });
         });
