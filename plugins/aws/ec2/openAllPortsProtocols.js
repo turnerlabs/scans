@@ -52,7 +52,11 @@ module.exports = {
 
                 for (var p in groups[g].IpPermissions) {
                     var permission = groups[g].IpPermissions[p];
-
+                    // determine if protocol should be ignored.
+                    if (['50', '51'].includes(permission.IpProtocol)) {
+                        // do not evaluate AH or ESP protocols
+                        continue;
+                    }
                     for (var k in permission.IpRanges) {
                         var range = permission.IpRanges[k];
 
