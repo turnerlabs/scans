@@ -311,6 +311,15 @@ describe('bucketAllUsersPolicyRead', function () {
             });
         });
 
+        it('should FAIL when the bucket policy grants SEVERAL * reads.', function (done) {
+            const cache = createCache(['*'], ['s3:GetObject', 's3:GetObjectAcl']);
+            bucketAllUsersPolicyRead.run(cache, {}, (err, results) => {
+                expect(results.length).to.equal(1, 'not enough results');
+                expect(results[0].status).to.equal(2, 'bad status');
+                done();
+            });
+        });
+
         it('should return tagging info on failures', function (done) {
             const cache = createCache(['*'], 's3:GetObject');
             bucketAllUsersPolicyRead.run(cache, {s3_public_tags: MYKEY}, (err, results) => {

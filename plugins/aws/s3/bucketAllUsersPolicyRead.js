@@ -1,5 +1,5 @@
 var helpers = require('../../../helpers/aws/');
-const { makeBucketPolicyResultMessage, evaluateConditions, evaluateStatement } = require('../../../helpers/aws/s3/bucketPolicyEvaluation');
+const { makeBucketPolicyResultMessage, evaluateConditions, doesStatementAllowPublicAccessForPermissions, addNumberAllowsDeniesFailsMessage } = require('../../../helpers/aws/s3/bucketPolicyEvaluation');
 const {readPermissions} = require('./s3Permissions');
 
 function getSpecificTag(bucketTaggingInfo, targetTag) {
@@ -13,7 +13,7 @@ function getSpecificTag(bucketTaggingInfo, targetTag) {
     return '';
 }
 
-function evaluateBucketPolicy(policy, metadata, config) {
+function evaluateBucketPolicy(policy, config) {
     let results = {
         failingOperatorKeyValueCombinations: [],
         unRecognizedOperatorKeyCombinations: [],
@@ -24,21 +24,40 @@ function evaluateBucketPolicy(policy, metadata, config) {
     };
     for (let s in policy.Statement) {
         let statement = policy.Statement[s];
-        const statementResults = evaluateStatement(statement, metadata, config);
-        if (!statementResults.pass) {
+        const allowsPublicAccessForPermissions = doesStatementAllowPublicAccessForPermissions(statement, config.validPermissions);
+        if (allowsPublicAccessForPermissions) {
             if (!statement.Condition) {
-                results.unconditionalMessages.push(`Principal * unconditionally allowed to perform: ${statement.Action}`);
+                if (statement.Action) {
+                    if (typeof statement.Action === 'string') {
+                    // Action is single action
+                        results.unconditionalMessages.push(statement.Action);
+                    }
+                    else {
+                        // Action is array of actions
+                        results.unconditionalMessages.push(...statement.Action);
+                    }
+                }
+                else {
+                    if (typeof statement.NotAction === 'string') {
+                    // Action is single action
+                        results.unconditionalMessages.push(statement.NotAction);
+                    }
+                    else {
+                        // Action is array of actions
+                        results.unconditionalMessages.push(...statement.NotAction);
+                    }
+                }
                 results.numberFailStatements += 1;
             }
             else {
-                const conditionEvaluationResults = evaluateConditions(statement, metadata, config);
-                conditionEvaluationResults.failingOperatorKeyValueCombinations.forEach(item => results.failingOperatorKeyValueCombinations.push(JSON.parse(item)));
+                const conditionEvaluationResults = evaluateConditions(statement, config);
+                conditionEvaluationResults.failingOperatorKeyValueCombinations.forEach(item => results.failingOperatorKeyValueCombinations.push(item));
                 conditionEvaluationResults.unRecognizedOperatorKeyCombinations.forEach(item => results.unRecognizedOperatorKeyCombinations.push(item));
                 if (!conditionEvaluationResults.pass) results.numberFailStatements += 1;
             }
         }
-        if (statementResults.isDeny) results.numberDenies += 1;
-        if (statementResults.isAllow) results.numberAllows += 1;
+        if (statement.Effect === 'Allow') results.numberAllows += 1;
+        if (statement.Effect === 'Deny') results.numberDenies += 1;
 
     }
     return results;
@@ -77,6 +96,7 @@ module.exports = {
             s3_trusted_ip_cidrs: settings.s3_trusted_ip_cidrs || this.settings.s3_trusted_ip_cidrs.default,
             s3_public_tags: settings.s3_public_tags || this.settings.s3_public_tags.default,
             validPermissions: readPermissions,
+            metadata: null
         };
         if (typeof config.s3_trusted_ip_cidrs === 'string') config.s3_trusted_ip_cidrs = config.s3_trusted_ip_cidrs.split(',');
 
@@ -144,19 +164,20 @@ module.exports = {
                     } else if (!policyJson.Statement.length) {
                         helpers.addResult(results, 0, 'Bucket policy does not contain any statements', 'global', bucketResource);
                     } else {
-                        var metadata = {};
+                        let metadata = {};
                         if (describeVpcEndpoints.data) metadata.describeVpcEndpoints = describeVpcEndpoints.data;
                         if (describeVpcs.data) metadata.describeVpcs = describeVpcs.data;
-                        if (getCallerIdentity.data) metadata.getCallerIdentity = getCallerIdentity.data;
-                        const bucketResults = evaluateBucketPolicy(policyJson, metadata, config);
-                        let message = 'policy not recognized by plugin logic';
-                        let statusCode = 3;
+                        if (getCallerIdentity.data) metadata.account = getCallerIdentity.data;  //metadata.account can be array or str
+                        config.metadata = metadata;
+                        const bucketResults = evaluateBucketPolicy(policyJson, config);
+                        let message;
+                        let statusCode;
                         if (bucketResults.numberFailStatements > 0) {
                             if (bucketResults.unconditionalMessages.length > 0) {
                                 // public open statements without condition
-                                message = bucketResults.unconditionalMessages.join(' ');
-                                message += `\n Number of denies: ${bucketResults.numberDenies.toString()}`;
-                                message += `\n Number of allows: ${bucketResults.numberAllows.toString()}`;
+                                message = 'Principal * unconditionally allowed to perform: ';
+                                message += bucketResults.unconditionalMessages.join(' ');
+                                message += '\n';
                                 statusCode = 2;
                             }
                             else if (bucketResults.failingOperatorKeyValueCombinations.length > 0) {
@@ -167,12 +188,16 @@ module.exports = {
                                 message = makeBucketPolicyResultMessage(bucketResults);
                                 statusCode = 1;
                             }
-                            // NOTE else clause intentionally omitted
+                            else {
+                                message = 'policy not recognized by plugin logic';
+                                statusCode = 3;
+                            }
                         }
                         else {
                             message = 'Bucket policy does not contain any insecure allow statements';
                             statusCode = 0;
                         }
+                        message = addNumberAllowsDeniesFailsMessage(message, bucketResults.numberAllows, bucketResults.numberDenies, bucketResults.numberFailStatements);
                         if (config.s3_public_tags) {
                             let tag = getSpecificTag(getBucketTagging.data, config.s3_public_tags);
                             if (tag) message += '\nThe bucket has public tag ' + tag;

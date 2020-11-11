@@ -1,4 +1,4 @@
-var minimatch = require('minimatch');
+const minimatch = require('minimatch');
 const IPCIDR = require('ip-cidr');
 
 function matchedPermissions(policyActions, permissions) {
@@ -9,14 +9,14 @@ function matchedPermissions(policyActions, permissions) {
 
 function hasPermissions(statement, permissions) {
     if (statement.Action) {
-        var actions = typeof statement.Action === 'string' ? [statement.Action] : statement.Action;
-        var grantedActions = matchedPermissions(actions, permissions);
+        let actions = typeof statement.Action === 'string' ? [statement.Action] : statement.Action;
+        let grantedActions = matchedPermissions(actions, permissions);
         if (!grantedActions.length) {
             return false;
         }
     } else if (statement.NotAction) {
-        var notActions = typeof statement.NotAction === 'string' ? [statement.NotAction] : statement.NotAction;
-        var deniedActions = matchedPermissions(notActions, permissions);
+        let notActions = typeof statement.NotAction === 'string' ? [statement.NotAction] : statement.NotAction;
+        let deniedActions = matchedPermissions(notActions, permissions);
         if (deniedActions.length === permissions.length) {
             return false;
         }
@@ -66,31 +66,31 @@ const CONDITIONTABLE = [
     {
         operators: ['StringEquals', 'StringEqualsIgnoreCase'],
         keys: ['aws:sourcevpc'],
-        evaluator: (metadata, config) => {
+        evaluator: (config) => {
             return (conditionKeyValue) => {
-                if (!metadata || !metadata.describeVpcs) {
+                if (!config.metadata || !config.metadata.describeVpcs) {
                     return false;
                 }
-                return metadata.describeVpcs.find(data => data.VpcId === conditionKeyValue);
+                return config.metadata.describeVpcs.find(data => data.VpcId === conditionKeyValue);
             };
         }
     },
     {
         operators: ['StringEquals', 'StringEqualsIgnoreCase'],
         keys: ['aws:sourcevpce'],
-        evaluator: (metadata, config) => {
+        evaluator: (config) => {
             return (conditionKeyValue) => {
-                if (!metadata || !metadata.describeVpcEndpoints) {
+                if (!config.metadata || !config.metadata.describeVpcEndpoints) {
                     return false;
                 }
-                return metadata.describeVpcEndpoints.find(data => data.VpcEndpointId === conditionKeyValue);
+                return config.metadata.describeVpcEndpoints.find(data => data.VpcEndpointId === conditionKeyValue);
             };
         }
     },
     {
         operators: ['IpAddress'],
         keys: ['aws:sourceip'],
-        evaluator: (metadata, config) => {
+        evaluator: (config) => {
             return (conditionKeyValue) => {
                 if (!config || !config.s3_trusted_ip_cidrs || config.s3_trusted_ip_cidrs.length === 0) {
                     return false;
@@ -130,32 +130,48 @@ const CONDITIONTABLE = [
     {
         operators: ['StringEquals', 'StringEqualsIgnoreCase', 'ArnEquals', 'ArnLike'],
         keys: ['aws:sourcearn'],
-        evaluator: (metadata, config) => {
+        evaluator: (config) => {
+            // config.metadata.account can be a string or array of string
             return (conditionKeyValue) => {
-                if (!metadata || !metadata.getCallerIdentity) {
+                if (!config.metadata || !config.metadata.account) {
                     return false;
                 }
-                if (conditionKeyValue.split(':')[4] !== metadata.getCallerIdentity) return false;
-                return true;
+                let accountIds = [];
+                if (typeof config.metadata.account === 'string') {
+                    accountIds.push(config.metadata.account);
+                }
+                else {
+                    // assuming 'account' is array
+                    accountIds = config.metadata.account;
+                }
+                return accountIds.includes(conditionKeyValue.split(':')[4]);
             };
         }
     },
     {
         operators: ['StringEquals', 'StringEqualsIgnoreCase'],
         keys: ['aws:sourceaccount'],
-        evaluator: (metadata, config) => {
+        evaluator: (config) => {
+            // config.metadata.account can be a string or array of string
             return (conditionKeyValue) => {
-                if (!metadata || !metadata.getCallerIdentity) {
+                if (!config.metadata || !config.metadata.account) {
                     return false;
                 }
-                if (conditionKeyValue !== metadata.getCallerIdentity) return false;
-                return true;
+                let accountIds = [];
+                if (typeof config.metadata.account === 'string') {
+                    accountIds.push(config.metadata.account);
+                }
+                else {
+                    // assuming 'account' is array
+                    accountIds = config.metadata.account;
+                }
+                return accountIds.includes(conditionKeyValue);
             };
         }
     },
 ];
 
-function evaluateConditions(statement, metadata, config) {
+function evaluateConditions(statement, config) {
     // checks to see if one of the conditions is mitigating
     let result = {
         pass: false,
@@ -168,7 +184,7 @@ function evaluateConditions(statement, metadata, config) {
     let nonMatchingConditions = new Set();
     let matchedConditions = new Set();
     for (definition of CONDITIONTABLE) {
-        let evaluator = definition.evaluator(metadata, config);
+        let evaluator = definition.evaluator(config);
         mitigatingConditionResults = isMitigatingCondition(statement.Condition, definition.operators, definition.keys, evaluator);
         if (mitigatingConditionResults.pass === true) {
             result.pass = true;
@@ -180,8 +196,7 @@ function evaluateConditions(statement, metadata, config) {
         mitigatingConditionResults.failingValues.forEach(item => failingValues.add(JSON.stringify(item)));   // stringify this because sets don't work with objects like I would expect.
         mitigatingConditionResults.matchedConditions.forEach(item => matchedConditions.add(item));
     }
-
-    result.failingOperatorKeyValueCombinations.push(...failingValues);  // usage of spread operator instead of Array concat because failingValues is of type Set
+    failingValues.forEach((element) => result.failingOperatorKeyValueCombinations.push(JSON.parse(element)));
     let condition;
     if (result.failingOperatorKeyValueCombinations.length === 0){
         // unRecognized combos are only relevant if failing operator length is 0
@@ -194,42 +209,26 @@ function evaluateConditions(statement, metadata, config) {
     return result;
 }
 
-function evaluateStatement(statement, metadata, config){
-    let results = {
-        pass: false,
-        isAllow: false,
-        isDeny: false
-    };
-    if (!hasPermissions(statement, config.validPermissions)) {
-        results.pass = true;
-        return results;
+function doesStatementAllowPublicAccessForPermissions(statement, permissions){
+    if (!hasPermissions(statement, permissions)) {
+        return false;
     }
     if (statement.Effect && statement.Effect === 'Allow') {
-        results.isAllow = true;
         if (statement.Principal) {
             if (typeof statement.Principal === 'string') {
-                results.pass = statement.Principal !== '*';  // pass is false if Principal is *
+                return statement.Principal === '*';
             } else if (typeof statement.Principal === 'object') {
                 if (statement.Principal.Service && statement.Principal.Service === '*') {
-                    results.pass = false;
+                    return true;
                 } else if (statement.Principal.AWS && statement.Principal.AWS === '*') {
-                    results.pass = false;
+                    return true;
                 } else if (statement.Principal.length && statement.Principal.indexOf('*') > -1) {
-                    results.pass = false;
-                } else {
-                    results.pass = true;
+                    return true;
                 }
-            }
-            else {
-                results.pass = true;
             }
         }
     }
-    else {
-        results.isDeny = true;
-        results.pass = true;
-    }
-    return results;
+    return false;
 }
 
 function makeBucketPolicyResultMessage(bucketResults) {
@@ -268,14 +267,18 @@ function makeBucketPolicyResultMessage(bucketResults) {
         message += unRecognizedCombos.join(', ');
         message += '\n';
     }
-    message += 'Policy summary: ' + bucketResults.numberAllows.toString() + ' allow statement(s) ' + bucketResults.numberDenies.toString() + ' deny statement(s) ' + bucketResults.numberFailStatements.toString() + ' failing statement(s)';
     return message;
+}
+
+function addNumberAllowsDeniesFailsMessage(message, numberAllows, numberDenies, numFail) {
+    return message + 'Policy summary: ' + numberAllows + ' allow statement(s) ' + numberDenies + ' deny statement(s) ' + numFail + ' failing statement(s)';
 }
 
 module.exports = {
     isMitigatingCondition: isMitigatingCondition,
     makeBucketPolicyResultMessage: makeBucketPolicyResultMessage,
     CONDITIONTABLE: CONDITIONTABLE,
-    evaluateStatement: evaluateStatement,
-    evaluateConditions: evaluateConditions
+    doesStatementAllowPublicAccessForPermissions: doesStatementAllowPublicAccessForPermissions,
+    evaluateConditions: evaluateConditions,
+    addNumberAllowsDeniesFailsMessage: addNumberAllowsDeniesFailsMessage
 };
