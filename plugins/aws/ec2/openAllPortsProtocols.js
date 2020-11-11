@@ -52,25 +52,29 @@ module.exports = {
 
                 for (var p in groups[g].IpPermissions) {
                     var permission = groups[g].IpPermissions[p];
-                    // determine if protocol should be ignored.
-                    if (['50', '51'].includes(permission.IpProtocol)) {
-                        // do not evaluate AH or ESP protocols
-                        continue;
-                    }
                     for (var k in permission.IpRanges) {
                         var range = permission.IpRanges[k];
 
                         if (range.CidrIp === '0.0.0.0/0') {
-                            if (!permission.FromPort && (!permission.ToPort || permission.ToPort === 65535)) {
-                                var string = 'all ports open to 0.0.0.0/0';
+                            let string;
+                            if (['50', '51'].includes(permission.IpProtocol)) {
+                                // these 2 protocols do not involve ports
+                                string = `protocol ${permission.IpProtocol} open to 0.0.0.0/0`;
                                 if (strings.indexOf(string) === -1) strings.push(string);
                                 found = true;
                             }
+                            else {
+                                if (!permission.FromPort && (!permission.ToPort || permission.ToPort === 65535)) {
+                                    string = 'all ports open to 0.0.0.0/0';
+                                    if (strings.indexOf(string) === -1) strings.push(string);
+                                    found = true;
+                                }
 
-                            if (permission.IpProtocol === '-1') {
-                                var stringO = 'all protocols open to 0.0.0.0/0';
-                                if (strings.indexOf(stringO) === -1) strings.push(stringO);
-                                found = true;
+                                if (permission.IpProtocol === '-1') {
+                                    string = 'all protocols open to 0.0.0.0/0';
+                                    if (strings.indexOf(string) === -1) strings.push(string);
+                                    found = true;
+                                }
                             }
                         }
                     }
@@ -79,16 +83,25 @@ module.exports = {
                         var rangeV6 = permission.Ipv6Ranges[l];
 
                         if (rangeV6.CidrIpv6 === '::/0') {
-                            if (!permission.FromPort && (!permission.ToPort || permission.ToPort === 65535)) {
-                                var stringV6 = 'all ports open to ::/0';
-                                if (strings.indexOf(stringV6) === -1) strings.push(stringV6);
+                            let string;
+                            if (['50', '51'].includes(permission.IpProtocol)) {
+                                // these 2 protocols do not involve ports
+                                string = `protocol ${permission.IpProtocol} open to ::/0`;
+                                if (strings.indexOf(string) === -1) strings.push(string);
                                 found = true;
                             }
+                            else {
+                                if (!permission.FromPort && (!permission.ToPort || permission.ToPort === 65535)) {
+                                    string = 'all ports open to ::/0';
+                                    if (strings.indexOf(string) === -1) strings.push(string);
+                                    found = true;
+                                }
 
-                            if (permission.IpProtocol === '-1') {
-                                var stringP = 'all protocols open to ::/0';
-                                if (strings.indexOf(stringP) === -1) strings.push(stringP);
-                                found = true;
+                                if (permission.IpProtocol === '-1') {
+                                    string = 'all protocols open to ::/0';
+                                    if (strings.indexOf(string) === -1) strings.push(string);
+                                    found = true;
+                                }
                             }
                         }
                     }

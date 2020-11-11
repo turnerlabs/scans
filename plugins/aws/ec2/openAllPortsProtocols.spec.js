@@ -127,6 +127,60 @@ const securityGroups = [
             ],
             "Tags": [],
             "VpcId": "vpc-99de2fe4"
+          },
+          {
+            "Description": "ESP 50 not open to world",
+            "GroupName": "spec-test-sg",
+            "OwnerId": "560213429563",
+            "GroupId": "sg-0b5f2771716acfee4",
+            "IpPermissions": [
+              {
+                "FromPort": 0,
+                "IpProtocol": "50",
+                "IpRanges": [
+                  {
+                    "CidrIp": "5.5.5.5/24"
+                  }
+                ],
+                "Ipv6Ranges": [
+                  {
+                    "CidrIpv6": "2001:db8::1234/32"
+                  }
+                ],
+                "PrefixListIds": [],
+                "ToPort": 0,
+                "UserIdGroupPairs": []
+              }
+            ],
+            "Tags": [],
+            "VpcId": "vpc-99de2fe4"
+          },
+          {
+            "Description": "AH 51 not open to world",
+            "GroupName": "spec-test-sg",
+            "OwnerId": "560213429563",
+            "GroupId": "sg-0b5f2771716acfee4",
+            "IpPermissions": [
+              {
+                "FromPort": 0,
+                "IpProtocol": "51",
+                "IpRanges": [
+                  {
+                    "CidrIp": "5.5.5.5/24"
+                  }
+                ],
+                "Ipv6Ranges": [
+                  {
+                    "CidrIpv6": "2001:db8::1234/32"
+                  }
+                ],
+                "PrefixListIds": [],
+                "ToPort": 0,
+                "UserIdGroupPairs": []
+              }
+            ],
+            "Tags": [],
+            "VpcId": "vpc-99de2fe4"
           }
         ];
 
@@ -186,8 +240,26 @@ describe('openAllPortsProtocols', function () {
             });
         });
 
-        it('should PASS when protocol 50 is all-ports-all-protocols', function (done) {
+        it('should FAIL when protocol 50 is open to world', function (done) {
             const cache = createCache([securityGroups[2]]);
+            openAllPortsProtocols.run(cache, {}, (err, results) => {
+                expect(results.length).to.equal(1);
+                expect(results[0].status).to.equal(2);
+                done();
+            });
+        });
+
+        it('should FAIL when protocol 51 is open to world', function (done) {
+            const cache = createCache([securityGroups[3]]);
+            openAllPortsProtocols.run(cache, {}, (err, results) => {
+                expect(results.length).to.equal(1);
+                expect(results[0].status).to.equal(2);
+                done();
+            });
+        });
+
+        it('should PASS when protocol 50 is not open to world', function (done) {
+            const cache = createCache([securityGroups[4]]);
             openAllPortsProtocols.run(cache, {}, (err, results) => {
                 expect(results.length).to.equal(1);
                 expect(results[0].status).to.equal(0);
@@ -195,8 +267,8 @@ describe('openAllPortsProtocols', function () {
             });
         });
 
-        it('should PASS when protocol 51 is all-ports-all-protocols', function (done) {
-            const cache = createCache([securityGroups[3]]);
+        it('should PASS when protocol 51 is not open to world', function (done) {
+            const cache = createCache([securityGroups[5]]);
             openAllPortsProtocols.run(cache, {}, (err, results) => {
                 expect(results.length).to.equal(1);
                 expect(results[0].status).to.equal(0);
