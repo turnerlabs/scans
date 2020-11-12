@@ -283,14 +283,6 @@ describe('bucketAllUsersPolicyWrite', function () {
             });
         });
 
-        it('should FAIL when the bucket policy grants service * writes.', function (done) {
-            const cache = createCache({ Service: '*' }, 's3:PutObject');
-            bucketAllUsersPolicyWrite.run(cache, {}, (err, results) => {
-                expect(results.length).to.equal(1, 'not enough results');
-                expect(results[0].status).to.equal(2, 'bad status');
-                done();
-            });
-        });
 
         it('should FAIL when the bucket policy grants AWS * writes.', function (done) {
             const cache = createCache({ AWS: '*' }, 's3:PutObject');
@@ -302,7 +294,7 @@ describe('bucketAllUsersPolicyWrite', function () {
         });
 
         it('should FAIL when the bucket policy grants * writes.', function (done) {
-            const cache = createCache(['*'], 's3:PutObject');
+            const cache = createCache('*', 's3:PutObject');
             bucketAllUsersPolicyWrite.run(cache, {}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');
                 expect(results[0].status).to.equal(2, 'bad status');
@@ -311,7 +303,7 @@ describe('bucketAllUsersPolicyWrite', function () {
         });
 
         it('should FAIL when the bucket policy grants SEVERAL * writes.', function (done) {
-            const cache = createCache(['*'], ['s3:PutObject', 's3:PutObjectAcl']);
+            const cache = createCache('*', ['s3:PutObject', 's3:PutObjectAcl']);
             bucketAllUsersPolicyWrite.run(cache, {}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');
                 expect(results[0].status).to.equal(2, 'bad status');
@@ -320,7 +312,7 @@ describe('bucketAllUsersPolicyWrite', function () {
         });
 
         it('should return tagging info on failures', function (done) {
-            const cache = createCache(['*'], 's3:PutObject');
+            const cache = createCache('*', 's3:PutObject');
             bucketAllUsersPolicyWrite.run(cache, {s3_public_tags: MYKEY}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');
                 expect(results[0].status).to.equal(2, 'bad status');

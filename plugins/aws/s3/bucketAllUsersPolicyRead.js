@@ -13,7 +13,7 @@ function getSpecificTag(bucketTaggingInfo, targetTag) {
     return '';
 }
 
-function evaluateBucketPolicy(policy, config) {
+function evaluateBucketPolicy(policy, bucketPolicyEvaluationConfig) {
     let results = {
         failingOperatorKeyValueCombinations: [],
         unRecognizedOperatorKeyCombinations: [],
@@ -22,35 +22,23 @@ function evaluateBucketPolicy(policy, config) {
         numberFailStatements: 0,
         unconditionalMessages: []
     };
-    for (let s in policy.Statement) {
-        let statement = policy.Statement[s];
-        const allowsPublicAccessForPermissions = doesStatementAllowPublicAccessForPermissions(statement, config.validPermissions);
+    for (let s in policy) {
+        let statement = policy[s];
+        const allowsPublicAccessForPermissions = doesStatementAllowPublicAccessForPermissions(statement, bucketPolicyEvaluationConfig.permissions);
         if (allowsPublicAccessForPermissions) {
             if (!statement.Condition) {
                 if (statement.Action) {
-                    if (typeof statement.Action === 'string') {
-                    // Action is single action
-                        results.unconditionalMessages.push(statement.Action);
-                    }
-                    else {
-                        // Action is array of actions
-                        results.unconditionalMessages.push(...statement.Action);
-                    }
+                    // Action is array of actions
+                    results.unconditionalMessages.push(...statement.Action);
                 }
                 else {
-                    if (typeof statement.NotAction === 'string') {
-                    // Action is single action
-                        results.unconditionalMessages.push(statement.NotAction);
-                    }
-                    else {
-                        // Action is array of actions
-                        results.unconditionalMessages.push(...statement.NotAction);
-                    }
+                    // NotAction is array of actions
+                    results.unconditionalMessages.push(...statement.NotAction);
                 }
                 results.numberFailStatements += 1;
             }
             else {
-                const conditionEvaluationResults = evaluateConditions(statement, config);
+                const conditionEvaluationResults = evaluateConditions(statement, bucketPolicyEvaluationConfig);
                 conditionEvaluationResults.failingOperatorKeyValueCombinations.forEach(item => results.failingOperatorKeyValueCombinations.push(item));
                 conditionEvaluationResults.unRecognizedOperatorKeyCombinations.forEach(item => results.unRecognizedOperatorKeyCombinations.push(item));
                 if (!conditionEvaluationResults.pass) results.numberFailStatements += 1;
@@ -93,12 +81,8 @@ module.exports = {
 
     run: function(cache, settings, callback) {
         var config = {
-            s3_trusted_ip_cidrs: settings.s3_trusted_ip_cidrs || this.settings.s3_trusted_ip_cidrs.default,
             s3_public_tags: settings.s3_public_tags || this.settings.s3_public_tags.default,
-            validPermissions: readPermissions,
-            metadata: null
         };
-        if (typeof config.s3_trusted_ip_cidrs === 'string') config.s3_trusted_ip_cidrs = config.s3_trusted_ip_cidrs.split(',');
 
         var results = [];
         var source = {};
@@ -142,6 +126,14 @@ module.exports = {
             // collect vpc info from all regions. ignore errors in a single region.
             if (value.data) describeVpcs.data.push(...value.data);
         });
+        const bucketPolicyEvaluationConfig = {  // all values should be array type
+            vpcIds: describeVpcs.data,
+            vpcEndpointIds: describeVpcEndpoints.data,
+            cidrRanges: settings.s3_trusted_ip_cidrs || this.settings.s3_trusted_ip_cidrs.default,
+            accountIds: [getCallerIdentity.data],
+            permissions: readPermissions
+        };
+        if (typeof bucketPolicyEvaluationConfig.cidrRanges === 'string') bucketPolicyEvaluationConfig.cidrRanges = bucketPolicyEvaluationConfig.cidrRanges.split(',');
         for (var i in listBuckets.data) {
             var bucket = listBuckets.data[i];
             if (!bucket.Name) continue;
@@ -157,19 +149,14 @@ module.exports = {
                 helpers.addResult(results, 3, `Error querying for bucket policy for bucket: ${bucket.Name}: ${helpers.addError(getBucketPolicy)}`, 'global', bucketResource);
             } else {
                 try {
-                    var policyJson = JSON.parse(getBucketPolicy.data.Policy);
+                    var policyJson = helpers.normalizePolicyDocument(getBucketPolicy.data.Policy);
+                    console.log(JSON.stringify(policyJson, null, 2));
+                    if (policyJson === false) throw new Error('invalid policyJson');  // helper returns false when there is an Error.
 
-                    if (!policyJson || !policyJson.Statement) {
-                        helpers.addResult(results, 3, `Error querying for bucket policy for bucket: ${bucket.Name}: Policy JSON is invalid or does not contain valid statements.`, 'global', bucketResource);
-                    } else if (!policyJson.Statement.length) {
+                    if (!policyJson.length) {
                         helpers.addResult(results, 0, 'Bucket policy does not contain any statements', 'global', bucketResource);
                     } else {
-                        let metadata = {};
-                        if (describeVpcEndpoints.data) metadata.describeVpcEndpoints = describeVpcEndpoints.data;
-                        if (describeVpcs.data) metadata.describeVpcs = describeVpcs.data;
-                        if (getCallerIdentity.data) metadata.account = getCallerIdentity.data;  //metadata.account can be array or str
-                        config.metadata = metadata;
-                        const bucketResults = evaluateBucketPolicy(policyJson, config);
+                        const bucketResults = evaluateBucketPolicy(policyJson, bucketPolicyEvaluationConfig);
                         let message;
                         let statusCode;
                         if (bucketResults.numberFailStatements > 0) {
@@ -179,21 +166,17 @@ module.exports = {
                                 message += bucketResults.unconditionalMessages.join(' ');
                                 message += '\n';
                                 statusCode = 2;
-                            }
-                            else if (bucketResults.failingOperatorKeyValueCombinations.length > 0) {
+                            } else if (bucketResults.failingOperatorKeyValueCombinations.length > 0) {
                                 message = makeBucketPolicyResultMessage(bucketResults);
                                 statusCode = 1;
-                            }
-                            else if (bucketResults.unRecognizedOperatorKeyCombinations.length > 0) {
+                            } else if (bucketResults.unRecognizedOperatorKeyCombinations.length > 0) {
                                 message = makeBucketPolicyResultMessage(bucketResults);
                                 statusCode = 1;
-                            }
-                            else {
+                            } else {
                                 message = 'policy not recognized by plugin logic';
                                 statusCode = 3;
                             }
-                        }
-                        else {
+                        } else {
                             message = 'Bucket policy does not contain any insecure allow statements';
                             statusCode = 0;
                         }

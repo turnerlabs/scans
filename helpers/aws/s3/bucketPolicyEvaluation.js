@@ -1,5 +1,6 @@
 const minimatch = require('minimatch');
 const IPCIDR = require('ip-cidr');
+var helpers = require('../../aws/');
 
 function matchedPermissions(policyActions, permissions) {
     return permissions.filter(perm => {
@@ -51,8 +52,7 @@ function isMitigatingCondition(statementCondition, allowedConditionOperators, al
             }
             if (matchFound) {
                 result.matchedConditions.push(conditionOperator + '.' + conditionKey.toString());
-            }
-            else {
+            } else {
                 result.nonMatchingConditions.push(conditionOperator + '.' + conditionKey.toString());
             }
         }
@@ -66,41 +66,34 @@ const CONDITIONTABLE = [
     {
         operators: ['StringEquals', 'StringEqualsIgnoreCase'],
         keys: ['aws:sourcevpc'],
-        evaluator: (config) => {
+        evaluator: (bucketPolicyEvaluationConfig) => {
             return (conditionKeyValue) => {
-                if (!config.metadata || !config.metadata.describeVpcs) {
-                    return false;
-                }
-                return config.metadata.describeVpcs.find(data => data.VpcId === conditionKeyValue);
+                return bucketPolicyEvaluationConfig.vpcIds.find(data => data.VpcId === conditionKeyValue);
             };
         }
     },
     {
         operators: ['StringEquals', 'StringEqualsIgnoreCase'],
         keys: ['aws:sourcevpce'],
-        evaluator: (config) => {
+        evaluator: (bucketPolicyEvaluationConfig) => {
             return (conditionKeyValue) => {
-                if (!config.metadata || !config.metadata.describeVpcEndpoints) {
-                    return false;
-                }
-                return config.metadata.describeVpcEndpoints.find(data => data.VpcEndpointId === conditionKeyValue);
+                return bucketPolicyEvaluationConfig.vpcEndpointIds.find(data => data.VpcEndpointId === conditionKeyValue);
             };
         }
     },
     {
         operators: ['IpAddress'],
         keys: ['aws:sourceip'],
-        evaluator: (config) => {
+        evaluator: (bucketPolicyEvaluationConfig) => {
             return (conditionKeyValue) => {
-                if (!config || !config.s3_trusted_ip_cidrs || config.s3_trusted_ip_cidrs.length === 0) {
+                if (bucketPolicyEvaluationConfig.cidrRanges.length === 0) {
                     return false;
                 }
                 let cidrToEval;
                 if (conditionKeyValue.includes('/') || conditionKeyValue.includes(':')) {
                     // ':' is to check for ipv6 and not add a mask to it.
                     cidrToEval = new IPCIDR(conditionKeyValue);
-                }
-                else {
+                } else {
                     // if somehow the subnet mask is omitted, use /32.
                     cidrToEval = new IPCIDR(conditionKeyValue + '/32');
                 }
@@ -110,7 +103,7 @@ const CONDITIONTABLE = [
                     if (error.constructor === TypeError) return false;  // conditionKeyValue is not a valid cidr
                     else throw error;
                 }
-                return config.s3_trusted_ip_cidrs.some(
+                return bucketPolicyEvaluationConfig.cidrRanges.some(
                     (trustedCidr) => {
                         trustedCidr = new IPCIDR(trustedCidr);
                         let addressMatchesTrustedRange = false;
@@ -130,48 +123,25 @@ const CONDITIONTABLE = [
     {
         operators: ['StringEquals', 'StringEqualsIgnoreCase', 'ArnEquals', 'ArnLike'],
         keys: ['aws:sourcearn'],
-        evaluator: (config) => {
-            // config.metadata.account can be a string or array of string
+        evaluator: (bucketPolicyEvaluationConfig) => {
             return (conditionKeyValue) => {
-                if (!config.metadata || !config.metadata.account) {
-                    return false;
-                }
-                let accountIds = [];
-                if (typeof config.metadata.account === 'string') {
-                    accountIds.push(config.metadata.account);
-                }
-                else {
-                    // assuming 'account' is array
-                    accountIds = config.metadata.account;
-                }
-                return accountIds.includes(conditionKeyValue.split(':')[4]);
+                return bucketPolicyEvaluationConfig.accountIds.includes(conditionKeyValue.split(':')[4]);
             };
         }
     },
     {
         operators: ['StringEquals', 'StringEqualsIgnoreCase'],
         keys: ['aws:sourceaccount'],
-        evaluator: (config) => {
-            // config.metadata.account can be a string or array of string
+        evaluator: (bucketPolicyEvaluationConfig) => {
+            // bucketPolicyEvaluationConfig.account can be a string or array of string
             return (conditionKeyValue) => {
-                if (!config.metadata || !config.metadata.account) {
-                    return false;
-                }
-                let accountIds = [];
-                if (typeof config.metadata.account === 'string') {
-                    accountIds.push(config.metadata.account);
-                }
-                else {
-                    // assuming 'account' is array
-                    accountIds = config.metadata.account;
-                }
-                return accountIds.includes(conditionKeyValue);
+                return bucketPolicyEvaluationConfig.accountIds.includes(conditionKeyValue);
             };
         }
     },
 ];
 
-function evaluateConditions(statement, config) {
+function evaluateConditions(statement, bucketPolicyEvaluationConfig) {
     // checks to see if one of the conditions is mitigating
     let result = {
         pass: false,
@@ -184,7 +154,7 @@ function evaluateConditions(statement, config) {
     let nonMatchingConditions = new Set();
     let matchedConditions = new Set();
     for (definition of CONDITIONTABLE) {
-        let evaluator = definition.evaluator(config);
+        let evaluator = definition.evaluator(bucketPolicyEvaluationConfig);
         mitigatingConditionResults = isMitigatingCondition(statement.Condition, definition.operators, definition.keys, evaluator);
         if (mitigatingConditionResults.pass === true) {
             result.pass = true;
@@ -213,22 +183,7 @@ function doesStatementAllowPublicAccessForPermissions(statement, permissions){
     if (!hasPermissions(statement, permissions)) {
         return false;
     }
-    if (statement.Effect && statement.Effect === 'Allow') {
-        if (statement.Principal) {
-            if (typeof statement.Principal === 'string') {
-                return statement.Principal === '*';
-            } else if (typeof statement.Principal === 'object') {
-                if (statement.Principal.Service && statement.Principal.Service === '*') {
-                    return true;
-                } else if (statement.Principal.AWS && statement.Principal.AWS === '*') {
-                    return true;
-                } else if (statement.Principal.length && statement.Principal.indexOf('*') > -1) {
-                    return true;
-                }
-            }
-        }
-    }
-    return false;
+    return helpers.globalPrincipal(statement.Principal);
 }
 
 function makeBucketPolicyResultMessage(bucketResults) {
@@ -242,8 +197,7 @@ function makeBucketPolicyResultMessage(bucketResults) {
             let failedValue = failedCombo.offendingValue.toString();
             if (comboKey in failedCombos) {
                 failedCombos[comboKey].push(failedValue);
-            }
-            else {
+            } else {
                 failedCombos[comboKey] = [failedValue];
             }
         }

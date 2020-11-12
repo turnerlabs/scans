@@ -160,14 +160,19 @@ function normalizePolicyDocument(doc) {
     for (var s in doc.Statement) {
         var statement = doc.Statement[s];
 
-        if (!statement.Effect || !statement.Effect.length ||
-            !statement.Action || !statement.Action.length) {
+        if (!statement.Effect || !statement.Effect.length) {
             break;
         }
-
         if (typeof statement.Effect !== 'string') break;
+        if (!statement.Action && !statement.NotAction) break;
 
-        if (!Array.isArray(statement.Action)) statement.Action = [statement.Action];
+        if (statement.Action) {
+            if (!statement.Action.length) break;
+            if (!Array.isArray(statement.Action)) statement.Action = [statement.Action];
+        } else if (statement.NotAction) {
+            if (!statement.NotAction.length) break;
+            if (!Array.isArray(statement.NotAction)) statement.NotAction = [statement.NotAction];
+        }
         if (statement.Resource && !Array.isArray(statement.Resource)) statement.Resource = [statement.Resource];
 
         statementsToReturn.push(statement);

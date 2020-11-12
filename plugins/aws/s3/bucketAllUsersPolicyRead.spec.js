@@ -18,10 +18,10 @@ const createPolicy = (effect, principal, action, resource, condition, notAction)
                 Effect: effect,
                 Principal: principal,
                 Resource: resource,
-                Condition: condition,
             },
         ],
     };
+    if (condition) policy.Statement[0].Condition = condition;
     if (notAction) {
         policy.Statement[0].NotAction = action;
     } else {
@@ -284,14 +284,6 @@ describe('bucketAllUsersPolicyRead', function () {
             });
         });
 
-        it('should FAIL when the bucket policy grants service * reads.', function (done) {
-            const cache = createCache({ Service: '*' }, 's3:GetObject');
-            bucketAllUsersPolicyRead.run(cache, {}, (err, results) => {
-                expect(results.length).to.equal(1, 'not enough results');
-                expect(results[0].status).to.equal(2, 'bad status');
-                done();
-            });
-        });
 
         it('should FAIL when the bucket policy grants AWS * reads.', function (done) {
             const cache = createCache({ AWS: '*' }, 's3:GetObject');
@@ -303,7 +295,7 @@ describe('bucketAllUsersPolicyRead', function () {
         });
 
         it('should FAIL when the bucket policy grants * reads.', function (done) {
-            const cache = createCache(['*'], 's3:GetObject');
+            const cache = createCache('*', 's3:GetObject');
             bucketAllUsersPolicyRead.run(cache, {}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');
                 expect(results[0].status).to.equal(2, 'bad status');
@@ -312,7 +304,7 @@ describe('bucketAllUsersPolicyRead', function () {
         });
 
         it('should FAIL when the bucket policy grants SEVERAL * reads.', function (done) {
-            const cache = createCache(['*'], ['s3:GetObject', 's3:GetObjectAcl']);
+            const cache = createCache('*', ['s3:GetObject', 's3:GetObjectAcl']);
             bucketAllUsersPolicyRead.run(cache, {}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');
                 expect(results[0].status).to.equal(2, 'bad status');
@@ -321,7 +313,7 @@ describe('bucketAllUsersPolicyRead', function () {
         });
 
         it('should return tagging info on failures', function (done) {
-            const cache = createCache(['*'], 's3:GetObject');
+            const cache = createCache('*', 's3:GetObject');
             bucketAllUsersPolicyRead.run(cache, {s3_public_tags: MYKEY}, (err, results) => {
                 expect(results.length).to.equal(1, 'not enough results');
                 expect(results[0].status).to.equal(2, 'bad status');

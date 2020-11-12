@@ -2,11 +2,11 @@ const expect = require('chai').expect;
 let bucketPolicyEvaluation = require('./bucketPolicyEvaluation')
 
 const configEmptyCidrs = {
-    s3_trusted_ip_cidrs: []
+    cidrRanges: []
 }
 
 const configWithCidrs = {
-    s3_trusted_ip_cidrs: ['48.8.24.13/32', '48.8.24.15/32', '48.9.0.0/16']
+    cidrRanges: ['48.8.24.13/32', '48.8.24.15/32', '48.9.0.0/16']
 }
 
 const sourceIpEvaluator = bucketPolicyEvaluation.CONDITIONTABLE[2].evaluator
