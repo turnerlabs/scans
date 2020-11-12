@@ -24,20 +24,15 @@ function evaluateBucketPolicy(policy, bucketPolicyEvaluationConfig) {
     };
     for (let s in policy) {
         let statement = policy[s];
-        const allowsPublicAccessForPermissions = doesStatementAllowPublicAccessForPermissions(statement, bucketPolicyEvaluationConfig.permissions);
-        if (allowsPublicAccessForPermissions) {
+        if (doesStatementAllowPublicAccessForPermissions(statement, bucketPolicyEvaluationConfig.permissions)) {
             if (!statement.Condition) {
                 if (statement.Action) {
-                    // Action is array of actions
                     results.unconditionalMessages.push(...statement.Action);
-                }
-                else {
-                    // NotAction is array of actions
-                    results.unconditionalMessages.push(...statement.NotAction);
+                } else {
+                    results.unconditionalMessages.push(...statement.NotAction.map(action => '!' + action));
                 }
                 results.numberFailStatements += 1;
-            }
-            else {
+            } else {
                 const conditionEvaluationResults = evaluateConditions(statement, bucketPolicyEvaluationConfig);
                 conditionEvaluationResults.failingOperatorKeyValueCombinations.forEach(item => results.failingOperatorKeyValueCombinations.push(item));
                 conditionEvaluationResults.unRecognizedOperatorKeyCombinations.forEach(item => results.unRecognizedOperatorKeyCombinations.push(item));
@@ -165,10 +160,8 @@ module.exports = {
                                 message += bucketResults.unconditionalMessages.join(' ');
                                 message += '\n';
                                 statusCode = 2;
-                            } else if (bucketResults.failingOperatorKeyValueCombinations.length > 0) {
-                                message = makeBucketPolicyResultMessage(bucketResults);
-                                statusCode = 1;
-                            } else if (bucketResults.unRecognizedOperatorKeyCombinations.length > 0) {
+                            } else if (bucketResults.failingOperatorKeyValueCombinations.length > 0 ||
+                                       bucketResults.unRecognizedOperatorKeyCombinations.length > 0) {
                                 message = makeBucketPolicyResultMessage(bucketResults);
                                 statusCode = 1;
                             } else {
