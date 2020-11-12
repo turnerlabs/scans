@@ -1,5 +1,5 @@
 var helpers = require('../../../helpers/aws/');
-const { evaluateBucketPolicy, makeBucketPolicyResultMessage } = require('../../../helpers/aws/s3/bucketPolicyEvaluation');
+const { makeBucketPolicyResultMessage, evaluateConditions, addNumberAllowsDeniesFailsMessage, doesStatementAllowPublicAccessForPermissions } = require('../../../helpers/aws/s3/bucketPolicyEvaluation');
 const {writePermissions} = require('./s3Permissions');
 
 function getSpecificTag(bucketTaggingInfo, targetTag) {
@@ -11,6 +11,51 @@ function getSpecificTag(bucketTaggingInfo, targetTag) {
         }
     }
     return '';
+}
+
+function evaluateBucketPolicy(policy, config) {
+    let results = {
+        failingOperatorKeyValueCombinations: [],
+        unRecognizedOperatorKeyCombinations: [],
+        numberAllows: 0,
+        numberDenies: 0,
+        numberFailStatements: 0,
+        unconditionalMessages: []
+    };
+    for (let s in policy.Statement) {
+        let statement = policy.Statement[s];
+        if (doesStatementAllowPublicAccessForPermissions(statement, config.validPermissions)) {
+            if (!statement.Condition) {
+                if (statement.Action) {
+                    if (typeof statement.Action === 'string') {
+                    // Action is single action
+                        results.unconditionalMessages.push(statement.Action);
+                    } else {
+                        // Action is array of actions
+                        results.unconditionalMessages.push(...statement.Action);
+                    }
+                } else {
+                    if (typeof statement.NotAction === 'string') {
+                    // Action is single action
+                        results.unconditionalMessages.push('!' + statement.NotAction);
+                    } else {
+                        // Action is array of actions
+                        results.unconditionalMessages.push(...statement.NotAction.map(action => '!' + action));
+                    }
+                }
+                results.numberFailStatements += 1;
+            } else {
+                const conditionEvaluationResults = evaluateConditions(statement, config);
+                conditionEvaluationResults.failingOperatorKeyValueCombinations.forEach(item => results.failingOperatorKeyValueCombinations.push(item));
+                conditionEvaluationResults.unRecognizedOperatorKeyCombinations.forEach(item => results.unRecognizedOperatorKeyCombinations.push(item));
+                if (!conditionEvaluationResults.pass) results.numberFailStatements += 1;
+            }
+        }
+        if (statement.Effect === 'Allow') results.numberAllows += 1;
+        if (statement.Effect === 'Deny') results.numberDenies += 1;
+
+    }
+    return results;
 }
 
 module.exports = {
@@ -113,24 +158,39 @@ module.exports = {
                     } else if (!policyJson.Statement.length) {
                         helpers.addResult(results, 0, 'Bucket policy does not contain any statements', 'global', bucketResource);
                     } else {
-                        var metadata = {};
-                        if (getBucketTagging.data) metadata.getBucketTagging = getBucketTagging.data;
+                        let metadata = {};
                         if (describeVpcEndpoints.data) metadata.describeVpcEndpoints = describeVpcEndpoints.data;
                         if (describeVpcs.data) metadata.describeVpcs = describeVpcs.data;
-                        if (getCallerIdentity.data) metadata.getCallerIdentity = getCallerIdentity.data;
-                        const bucketResults = evaluateBucketPolicy(policyJson, metadata, config);
+                        if (getCallerIdentity.data) metadata.account = getCallerIdentity.data;  //metadata.account can be array or str
+                        config.metadata = metadata;
+                        const bucketResults = evaluateBucketPolicy(policyJson, config);
+                        let message;
+                        let statusCode;
                         if (bucketResults.numberFailStatements > 0) {
-                            let message = makeBucketPolicyResultMessage(bucketResults);
-
-                            if (config.s3_public_tags) {
-                                let tag = getSpecificTag(getBucketTagging.data, config.s3_public_tags);
-                                if (tag) message += '\nThe bucket has public tag ' + tag;
+                            if (bucketResults.unconditionalMessages.length > 0) {
+                                // public open statements without condition
+                                message = 'Principal * unconditionally allowed to perform: ';
+                                message += bucketResults.unconditionalMessages.join(' ');
+                                message += '\n';
+                                statusCode = 2;
+                            } else if (bucketResults.failingOperatorKeyValueCombinations.length > 0 ||
+                                       bucketResults.unRecognizedOperatorKeyCombinations.length > 0) {
+                                message = makeBucketPolicyResultMessage(bucketResults);
+                                statusCode = 1;
+                            } else {
+                                message = 'policy not recognized by plugin logic';
+                                statusCode = 3;
                             }
-                            helpers.addResult(results, 2, message, 'global', bucketResource);
+                        } else {
+                            message = 'Bucket policy does not contain any insecure allow statements';
+                            statusCode = 0;
                         }
-                        else {
-                            helpers.addResult(results, 0, 'Bucket policy does not contain any insecure allow statements', 'global', bucketResource);
+                        message = addNumberAllowsDeniesFailsMessage(message, bucketResults.numberAllows, bucketResults.numberDenies, bucketResults.numberFailStatements);
+                        if (config.s3_public_tags) {
+                            let tag = getSpecificTag(getBucketTagging.data, config.s3_public_tags);
+                            if (tag) message += '\nThe bucket has public tag ' + tag;
                         }
+                        helpers.addResult(results, statusCode, message, 'global', bucketResource);
                     }
                 } catch(e) {
                     helpers.addResult(results, 3, `Error querying for bucket policy for bucket: ${bucket.Name}: Policy JSON could not be parsed.`, 'global', bucketResource);
