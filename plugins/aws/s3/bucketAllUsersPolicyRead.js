@@ -24,32 +24,27 @@ function evaluateBucketPolicy(policy, config) {
     };
     for (let s in policy.Statement) {
         let statement = policy.Statement[s];
-        const allowsPublicAccessForPermissions = doesStatementAllowPublicAccessForPermissions(statement, config.validPermissions);
-        if (allowsPublicAccessForPermissions) {
+        if (doesStatementAllowPublicAccessForPermissions(statement, config.validPermissions)) {
             if (!statement.Condition) {
                 if (statement.Action) {
                     if (typeof statement.Action === 'string') {
                     // Action is single action
                         results.unconditionalMessages.push(statement.Action);
-                    }
-                    else {
+                    } else {
                         // Action is array of actions
                         results.unconditionalMessages.push(...statement.Action);
                     }
-                }
-                else {
+                } else {
                     if (typeof statement.NotAction === 'string') {
                     // Action is single action
-                        results.unconditionalMessages.push(statement.NotAction);
-                    }
-                    else {
+                        results.unconditionalMessages.push('!' + statement.NotAction);
+                    } else {
                         // Action is array of actions
-                        results.unconditionalMessages.push(...statement.NotAction);
+                        results.unconditionalMessages.push(...statement.NotAction.map(action => '!' + action));
                     }
                 }
                 results.numberFailStatements += 1;
-            }
-            else {
+            } else {
                 const conditionEvaluationResults = evaluateConditions(statement, config);
                 conditionEvaluationResults.failingOperatorKeyValueCombinations.forEach(item => results.failingOperatorKeyValueCombinations.push(item));
                 conditionEvaluationResults.unRecognizedOperatorKeyCombinations.forEach(item => results.unRecognizedOperatorKeyCombinations.push(item));
@@ -179,16 +174,11 @@ module.exports = {
                                 message += bucketResults.unconditionalMessages.join(' ');
                                 message += '\n';
                                 statusCode = 2;
-                            }
-                            else if (bucketResults.failingOperatorKeyValueCombinations.length > 0) {
+                            } else if (bucketResults.failingOperatorKeyValueCombinations.length > 0 ||
+                                       bucketResults.unRecognizedOperatorKeyCombinations.length > 0) {
                                 message = makeBucketPolicyResultMessage(bucketResults);
                                 statusCode = 1;
-                            }
-                            else if (bucketResults.unRecognizedOperatorKeyCombinations.length > 0) {
-                                message = makeBucketPolicyResultMessage(bucketResults);
-                                statusCode = 1;
-                            }
-                            else {
+                            } else {
                                 message = 'policy not recognized by plugin logic';
                                 statusCode = 3;
                             }
