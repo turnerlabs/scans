@@ -74,7 +74,7 @@ module.exports = {
                             } else {
                                 // protocol is string (not an integer)
                                 if (!permission.FromPort && (!permission.ToPort || permission.ToPort === 65535)) {
-                                    string = 'all ports open to 0.0.0.0/0';
+                                    string = `${permission.IpProtocol} all ports open to 0.0.0.0/0`;
                                     if (strings.indexOf(string) === -1) strings.push(string);
                                     found = true;
                                 }
@@ -99,7 +99,7 @@ module.exports = {
                             } else {
                                 // protocol is string (not an integer)
                                 if (!permission.FromPort && (!permission.ToPort || permission.ToPort === 65535)) {
-                                    string = 'all ports open to ::/0';
+                                    string = `${permission.IpProtocol} all ports open to ::/0`;
                                     if (strings.indexOf(string) === -1) strings.push(string);
                                     found = true;
                                 }

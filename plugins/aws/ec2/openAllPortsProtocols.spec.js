@@ -22,19 +22,7 @@ const securityGroups = [
             ],
             "OwnerId": "560213429563",
             "GroupId": "sg-0ff1642cae23c309a",
-            "IpPermissionsEgress": [
-              {
-                "IpProtocol": "-1",
-                "IpRanges": [
-                  {
-                    "CidrIp": "0.0.0.0/0"
-                  }
-                ],
-                "Ipv6Ranges": [],
-                "PrefixListIds": [],
-                "UserIdGroupPairs": []
-              }
-            ],
+            "IpPermissionsEgress": [],
             "Tags": [],
             "VpcId": "vpc-99de2fe4"
           },
@@ -58,19 +46,7 @@ const securityGroups = [
             ],
             "OwnerId": "560213429563",
             "GroupId": "sg-0ff1642cae23c309a",
-            "IpPermissionsEgress": [
-              {
-                "IpProtocol": "-1",
-                "IpRanges": [
-                  {
-                    "CidrIp": "0.0.0.0/0"
-                  }
-                ],
-                "Ipv6Ranges": [],
-                "PrefixListIds": [],
-                "UserIdGroupPairs": []
-              }
-            ],
+            "IpPermissionsEgress": [],
             "Tags": [],
             "VpcId": "vpc-99de2fe4"
           },
@@ -179,6 +155,30 @@ const securityGroups = [
                 "UserIdGroupPairs": []
               }
             ],
+            "Tags": [],
+            "VpcId": "vpc-99de2fe4"
+          },
+          {
+            "Description": "tcp all ports open",
+            "GroupName": "launch-wizard-1",
+            "IpPermissions": [
+              {
+                "FromPort": 0,
+                "IpProtocol": "tcp",
+                "IpRanges": [
+                  {
+                    "CidrIp": "0.0.0.0/0"
+                  }
+                ],
+                "Ipv6Ranges": [],
+                "PrefixListIds": [],
+                "ToPort": 65535,
+                "UserIdGroupPairs": []
+              }
+            ],
+            "OwnerId": "560213429563",
+            "GroupId": "sg-0ff1642cae23c309a",
+            "IpPermissionsEgress": [],
             "Tags": [],
             "VpcId": "vpc-99de2fe4"
           }
@@ -296,6 +296,16 @@ describe('openAllPortsProtocols', function () {
             const cache = createNullCache();
             openAllPortsProtocols.run(cache, {}, (err, results) => {
                 expect(results.length).to.equal(0);
+                done();
+            });
+        });
+
+        it('should FAIL if security groups tcp is all-ports-open', function (done) {
+            const cache = createCache([securityGroups[6]]);
+            openAllPortsProtocols.run(cache, {}, (err, results) => {
+                expect(results.length).to.equal(1);
+                expect(results[0].status).to.equal(2);
+                expect(results[0].message).to.include('tcp all ports open');
                 done();
             });
         });
