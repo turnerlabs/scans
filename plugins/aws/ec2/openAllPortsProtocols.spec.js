@@ -44,7 +44,7 @@ const securityGroups = [
             "IpPermissions": [
               {
                 "FromPort": 0,
-                "IpProtocol": "tcp",
+                "IpProtocol": "-1",
                 "IpRanges": [
                   {
                     "CidrIp": "0.0.0.0/0"
@@ -52,7 +52,7 @@ const securityGroups = [
                 ],
                 "Ipv6Ranges": [],
                 "PrefixListIds": [],
-                "ToPort": 0,
+                "ToPort": 65535,
                 "UserIdGroupPairs": []
               }
             ],
@@ -236,6 +236,7 @@ describe('openAllPortsProtocols', function () {
             openAllPortsProtocols.run(cache, {}, (err, results) => {
                 expect(results.length).to.equal(1);
                 expect(results[0].status).to.equal(2);
+                expect(results[0].message).to.include('all protocols');
                 done();
             });
         });
@@ -245,6 +246,9 @@ describe('openAllPortsProtocols', function () {
             openAllPortsProtocols.run(cache, {}, (err, results) => {
                 expect(results.length).to.equal(1);
                 expect(results[0].status).to.equal(2);
+                expect(results[0].message).to.include('protocol ');
+                expect(results[0].message).to.include('::/0');
+                expect(results[0].message).to.include('0.0.0.0/0');
                 done();
             });
         });
@@ -254,6 +258,9 @@ describe('openAllPortsProtocols', function () {
             openAllPortsProtocols.run(cache, {}, (err, results) => {
                 expect(results.length).to.equal(1);
                 expect(results[0].status).to.equal(2);
+                expect(results[0].message).to.include('protocol ');
+                expect(results[0].message).to.include('::/0');
+                expect(results[0].message).to.include('0.0.0.0/0');
                 done();
             });
         });

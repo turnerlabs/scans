@@ -1,6 +1,11 @@
 var async = require('async');
 var helpers = require('../../../helpers/aws');
 
+function isNumeric(str) {
+    if (typeof str != 'string') return false;
+    return !isNaN(str) && !isNaN(parseFloat(str));
+}
+
 module.exports = {
     title: 'Open All Ports Protocols',
     category: 'EC2',
@@ -11,20 +16,20 @@ module.exports = {
     apis: ['EC2:describeSecurityGroups'],
     compliance: {
         hipaa: 'HIPAA requires strict access controls to networks and services ' +
-                'processing sensitive data. Security groups are the built-in ' +
-                'method for restricting access to AWS services and should be ' +
-                'configured to allow least-privilege access.',
+            'processing sensitive data. Security groups are the built-in ' +
+            'method for restricting access to AWS services and should be ' +
+            'configured to allow least-privilege access.',
         pci: 'PCI has explicit requirements around firewalled access to systems. ' +
-             'Security groups should be properly secured to prevent access to ' +
-             'backend services.'
+            'Security groups should be properly secured to prevent access to ' +
+            'backend services.'
     },
 
-    run: function(cache, settings, callback) {
+    run: function (cache, settings, callback) {
         var results = [];
         var source = {};
         var regions = helpers.regions(settings);
 
-        async.each(regions.ec2, function(region, rcb){
+        async.each(regions.ec2, function (region, rcb) {
             var describeSecurityGroups = helpers.addSource(cache, source,
                 ['ec2', 'describeSecurityGroups', region]);
 
@@ -47,58 +52,54 @@ module.exports = {
             for (var g in groups) {
                 var strings = [];
                 var resource = 'arn:aws:ec2:' + region + ':' +
-                               groups[g].OwnerId + ':security-group/' +
-                               groups[g].GroupId;
+                    groups[g].OwnerId + ':security-group/' +
+                    groups[g].GroupId;
 
                 for (var p in groups[g].IpPermissions) {
                     var permission = groups[g].IpPermissions[p];
                     for (var k in permission.IpRanges) {
                         var range = permission.IpRanges[k];
-
                         if (range.CidrIp === '0.0.0.0/0') {
                             let string;
-                            if (['50', '51'].includes(permission.IpProtocol)) {
-                                // these 2 protocols do not involve ports
+                            if (permission.IpProtocol === '-1') {
+                                // protocol is -1
+                                string = 'all protocols open to 0.0.0.0/0';
+                                if (strings.indexOf(string) === -1) strings.push(string);
+                                found = true;
+                            } else if (isNumeric(permission.IpProtocol)) {
+                                // protocol is number (not -1)
                                 string = `protocol ${permission.IpProtocol} open to 0.0.0.0/0`;
                                 if (strings.indexOf(string) === -1) strings.push(string);
                                 found = true;
-                            }
-                            else {
+                            } else {
+                                // protocol is string (not an integer)
                                 if (!permission.FromPort && (!permission.ToPort || permission.ToPort === 65535)) {
                                     string = 'all ports open to 0.0.0.0/0';
-                                    if (strings.indexOf(string) === -1) strings.push(string);
-                                    found = true;
-                                }
-
-                                if (permission.IpProtocol === '-1') {
-                                    string = 'all protocols open to 0.0.0.0/0';
                                     if (strings.indexOf(string) === -1) strings.push(string);
                                     found = true;
                                 }
                             }
                         }
                     }
-
                     for (var l in permission.Ipv6Ranges) {
                         var rangeV6 = permission.Ipv6Ranges[l];
 
                         if (rangeV6.CidrIpv6 === '::/0') {
                             let string;
-                            if (['50', '51'].includes(permission.IpProtocol)) {
-                                // these 2 protocols do not involve ports
+                            if (permission.IpProtocol === '-1') {
+                                // protocol is -1
+                                string = 'all protocols open to ::/0';
+                                if (strings.indexOf(string) === -1) strings.push(string);
+                                found = true;
+                            } else if (isNumeric(permission.IpProtocol)) {
+                                // protocol is number (not -1)
                                 string = `protocol ${permission.IpProtocol} open to ::/0`;
                                 if (strings.indexOf(string) === -1) strings.push(string);
                                 found = true;
-                            }
-                            else {
+                            } else {
+                                // protocol is string (not an integer)
                                 if (!permission.FromPort && (!permission.ToPort || permission.ToPort === 65535)) {
                                     string = 'all ports open to ::/0';
-                                    if (strings.indexOf(string) === -1) strings.push(string);
-                                    found = true;
-                                }
-
-                                if (permission.IpProtocol === '-1') {
-                                    string = 'all protocols open to ::/0';
                                     if (strings.indexOf(string) === -1) strings.push(string);
                                     found = true;
                                 }
@@ -106,6 +107,8 @@ module.exports = {
                         }
                     }
                 }
+
+
 
                 if (strings.length) {
                     helpers.addResult(results, 2,
@@ -121,7 +124,7 @@ module.exports = {
             }
 
             rcb();
-        }, function(){
+        }, function () {
             callback(null, results, source);
         });
     }
