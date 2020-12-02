@@ -1,0 +1,12 @@
+export ARTIFACT_BUCKET=wmcso-inventory-nonprod-us-east-1-sam-artifacts
+export STACK_NAME=wmcso-cloudsploit-dev
+export DEFAULT_ROLE_NAME=wmcso-audit-nonprod
+export SECRETS_MANAGER_PREFIX="/cloudsploit/secrets/"
+export BUCKET_NAME=warnermedia-antiope-dev
+export BUCKET_PREFIX="NextGenScorecards/CloudSploit"
+export CREATE_BUCKET=no
+export SNS_TOPIC=""
+export SCHEDULE=""
+export SCHEDULED_ACCOUNT_ID=""
+export SCHEDULED_ROLE_NAME=""
+export SCHEDULED_EXTERNAL_ID=""
