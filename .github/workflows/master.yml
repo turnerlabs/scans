@@ -12,7 +12,7 @@ jobs:
       - uses: actions/checkout@v2
       - name: Deploy
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.NONPROD_AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.NONPROD_AWS_SECRET_ACCESS_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.PROD_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.PROD_AWS_SECRET_ACCESS_KEY }}
         run: |
           STAGE=prod AWS_REGION=us-east-1 make deploy
