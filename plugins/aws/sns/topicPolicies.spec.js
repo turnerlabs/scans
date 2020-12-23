@@ -86,7 +86,9 @@ describe('topicPolicies', function () {
                             ],
                             Resource: "*",
                             Condition: {
-                                SourceOwner: '111111111111'
+                                StringEquals: {
+                                    SourceOwner: '111111111111'
+                                }
                             }
                         }
                     ]
@@ -117,7 +119,9 @@ describe('topicPolicies', function () {
                             ],
                             Resource: "*",
                             Condition: {
-                                SourceArn: '111111111111'
+                                ArnEquals: {
+                                    SourceArn: '111111111111'
+                                }
                             }
                         }
                     ]
@@ -148,7 +152,9 @@ describe('topicPolicies', function () {
                             ],
                             Resource: "*",
                             Condition: {
-                                SourceOwner: '*'
+                                StringEquals: {
+                                    SourceOwner: '*'
+                                }
                             }
                         }
                     ]
@@ -178,7 +184,9 @@ describe('topicPolicies', function () {
                             ],
                             Resource: "*",
                             Condition: {
-                                SourceOwner: ['*']
+                                StringEquals: {
+                                    SourceOwner: ['*']
+                                }
                             }
                         }
                     ]
@@ -209,7 +217,42 @@ describe('topicPolicies', function () {
                             ],
                             Resource: "*",
                             Condition: {
-                                SourceArn: '*'
+                                ArnEquals: {
+                                    SourceArn: '*'
+                                }
+                            }
+                        }
+                    ]
+                }
+            );
+
+            snsTopicPolicies.run(cache, {}, callback);
+        })
+
+        it('should FAIL if allow, open principal, but unrecognized condition', function (done) {
+            const callback = (err, results) => {
+                expect(results.length).to.equal(1)
+                expect(results[0].status).to.equal(2)
+                expect(results[0].message).to.include('allows global access')
+                done()
+            };
+
+            const cache = createCache(
+                {
+                    Statement: [
+                        {
+                            Effect: 'Allow',
+                            Principal: {
+                                AWS: "*"
+                            },
+                            Action: [
+                                "sns:GetTopicAttributes"
+                            ],
+                            Resource: "*",
+                            Condition: {
+                                SomethingElse: {
+                                    SomethingNotRecognized: '*'
+                                }
                             }
                         }
                     ]
@@ -240,7 +283,9 @@ describe('topicPolicies', function () {
                             ],
                             Resource: "*",
                             Condition: {
-                                SourceArn: ['*']
+                                ArnEquals: {
+                                    SourceArn: ['*']
+                                }
                             }
                         }
                     ]

@@ -99,7 +99,7 @@ module.exports = {
                         }
                         // Summarize the condition results
                         var statementEval = ((conditionExists && (conditionString || conditionArn)) ? false : true);
-
+                        // TODO what should be done if the condition was unrecognized?
                         if (effectEval && principalEval && statementEval) {
                             if (statement.Action && typeof statement.Action === 'string') {
                                 if (actions.indexOf(statement.Action) === -1) {
