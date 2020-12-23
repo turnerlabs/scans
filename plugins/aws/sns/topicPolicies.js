@@ -21,14 +21,14 @@ module.exports = {
 
             if (!listTopics) return rcb();
 
-            if (listTopics.err || !listTopics.data) {
-                helpers.addResult(results, 3,
-                    'Unable to query for SNS topics: ' + helpers.addError(listTopics), region);
+            if (listTopics.data !== undefined && !listTopics.data.length) {
+                helpers.addResult(results, 0, 'No SNS topics found', region);  // NOTE check data length before checking !listTopics.data
                 return rcb();
             }
 
-            if (!listTopics.data.length) {
-                helpers.addResult(results, 0, 'No SNS topics found', region);
+            if (listTopics.err || !listTopics.data) {
+                helpers.addResult(results, 3,
+                    'Unable to query for SNS topics: ' + helpers.addError(listTopics), region);
                 return rcb();
             }
 
@@ -77,6 +77,7 @@ module.exports = {
                         // Evaluates whether the effect of the statement is to "allow" access to the SNS
                         var effectEval = (statement.Effect && statement.Effect == 'Allow' ? true : false);
 
+                        // TODO principal can be within an array!
                         // Evaluates whether the principal is open to everyone/anonymous
                         var principalEval = (statement.Principal && statement.Principal.AWS &&
                                             (statement.Principal.AWS === '*' || statement.Principal.AWS === 'arn:aws:iam::*') ? true : false);
@@ -85,6 +86,7 @@ module.exports = {
                         // Does the condition exist?
                         var conditionExists = (statement.Condition ? true : false);
                         // Is it a string condition (StringEquals)? Is the SourceOwner open to everyone?
+                        // TODO values can be array, ie ["*"] !
                         var conditionString = ((statement.Condition && statement.Condition.StringEquals &&
                             (statement.Condition.StringEquals['AWS:SourceOwner'] || !statement.Condition.StringEquals['AWS:SourceOwner'] == '*')) ? true : false);
                         // Is it an arn condition (ArnEquals)? Is the SourceArn open to all arns?
