@@ -21,14 +21,15 @@ module.exports = {
 
             if (!listTopics) return rcb();
 
-            if (listTopics.data !== undefined && !listTopics.data.length) {
-                helpers.addResult(results, 0, 'No SNS topics found', region);  // NOTE check data length before checking !listTopics.data
-                return rcb();
-            }
 
             if (listTopics.err || !listTopics.data) {
                 helpers.addResult(results, 3,
                     'Unable to query for SNS topics: ' + helpers.addError(listTopics), region);
+                return rcb();
+            }
+
+            if (!listTopics.data.length) {
+                helpers.addResult(results, 0, 'No SNS topics found', region);
                 return rcb();
             }
 
