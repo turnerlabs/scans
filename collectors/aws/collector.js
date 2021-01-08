@@ -373,7 +373,10 @@ var calls = {
     EMR: {
         listClusters: {
             property: 'Clusters',
-            paginate: 'Marker'
+            paginate: 'Marker',
+            params: {
+                ClusterStates: [ "STARTING", "RUNNING", "WAITING" ]
+            }
         }
     },
     ES: {

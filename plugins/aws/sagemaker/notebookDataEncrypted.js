@@ -8,7 +8,7 @@ module.exports = {
     more_info: 'An optional encryption key can be supplied during Notebook Instance creation.',
     recommended_action: 'An existing KMS key should be supplied during Notebook Instance creation.',
     link: 'https://docs.aws.amazon.com/sagemaker/latest/dg/API_CreateNotebookInstance.html#API_CreateNotebookInstance_RequestSyntax',
-    apis: ['SageMaker:listNotebookInstances'],
+    apis: ['SageMaker:listNotebookInstances', 'SageMaker:describeNotebookInstance' ],
     compliance: {
         hipaa: 'All data in HIPAA environments must be encrypted, including ' +
                 'data at rest. SageMaker encryption ensures Notebook data is ' +
@@ -39,11 +39,26 @@ module.exports = {
                 return rcb();
             }
 
+            var describeNotebookInstance = helpers.addSource(cache, source,
+                ['sagemaker', 'describeNotebookInstance', region]);
+
+            if (!describeNotebookInstance) {
+                helpers.addResult(
+                    results, 0, 'Not able to run describeNoteBookInstance', region);
+                return rcb();
+            }
             for (var i in listNotebookInstances.data) {
+
                 var instance = listNotebookInstances.data[i];
                 var instanceArn = instance.NotebookInstanceArn;
+                if( !describeNotebookInstance[instance.NotebookInstanceName] || !describeNotebookInstance[instance.NotebookInstanceName].data){
+                    helpers.addResult(
+                        results, 2, 'Not able to find describeNoteBookInstance data on ' + instance.NotebookInstanceName, region, instanceArn);
+                    continue;
+                }
+                var instanceDescribed = describeNotebookInstance[instance.NotebookInstanceName].data;
 
-                if (!instance.KmsKeyId){
+                if (!instanceDescribed.KmsKeyId){
                     helpers.addResult(results, 2,
                         'KMS key not found for Notebook Instance', region, instanceArn);
                 } else {

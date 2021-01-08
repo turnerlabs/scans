@@ -22,7 +22,6 @@ async function writeToS3(bucket, resultsToWrite, templatePrefix, s3Prefix) {
     var s3 = new AWS.S3({apiVersion: 'latest'});
     var bucketPrefix = templatePrefix ? `${templatePrefix}/` : '';
     bucketPrefix = s3Prefix ? `${bucketPrefix}${s3Prefix}/` : bucketPrefix;
-    // require('fs').writeFileSync('runresults.json', JSON.stringify(resultsToWrite, null, 2));
     if (bucket && resultsToWrite) {
         console.log('Writing Output to S3');
         var dt = new Date();
@@ -94,7 +93,12 @@ exports.handler = async function(event, context) {
 
         console.assert(results.collectionData, 'No Collection Data found.');
         console.assert(results.resultsData, 'No Results Data found.');
-        await writeToS3(process.env.RESULT_BUCKET, results, process.env.RESULT_PREFIX, parsedEvent.s3Prefix);
+        if( settings.local_output ){
+            console.log( "Writing output to " + settings.local_output);
+            require('fs').writeFileSync( settings.local_output, JSON.stringify(results, null, 2));
+        }else{
+            await writeToS3(process.env.RESULT_BUCKET, results, process.env.RESULT_PREFIX, parsedEvent.s3Prefix);
+        }
         return 'Ok';
     } catch(err) {
         // Just log the error and re-throw so we have a lambda error metric
